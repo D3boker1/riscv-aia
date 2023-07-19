@@ -2,13 +2,14 @@
 module imsic_top_wrapper #(
     parameter int                           NR_SRC          = 30,
     parameter int                           MIN_PRIO        = 6 ,
-    parameter int unsigned                  NR_IMSICS       = 4,
-    parameter int unsigned                  NR_VS_FILES_PER_IMSIC  = 1,
+    parameter int unsigned                  NR_IMSICS       = 1,
+    parameter int unsigned                  NR_VS_FILES_PER_IMSIC  = 0,
     parameter int unsigned                  AXI_ADDR_WIDTH  = 64,
     parameter int unsigned                  AXI_DATA_WIDTH  = 64,
     parameter int unsigned                  AXI_ID_WIDTH    = 4 ,
     //
     parameter int                           NR_INTP_FILES   = 2 + NR_VS_FILES_PER_IMSIC,
+    parameter int                           INTP_FILE_LEN    = $clog2(NR_INTP_FILES),
     parameter int                           VS_INTP_FILE_LEN = $clog2(NR_VS_FILES_PER_IMSIC),
     parameter int                           NR_SRC_LEN       = $clog2(NR_SRC)
 ) (
@@ -25,7 +26,11 @@ module imsic_top_wrapper #(
     input  logic [32-1:0]                   i_imsic_addr,
     input  logic [32-1:0]                   i_imsic_data,
     input  logic                            i_imsic_we,
-    input  logic                            i_imsic_claim
+    input  logic                            i_imsic_claim,
+    /** APLIC interface */
+    input  logic [NR_SRC_LEN-1:0]           i_aplic_setipnum,
+    input  logic [NR_IMSICS-1:0]            i_aplic_imsic_en,
+    input  logic [INTP_FILE_LEN-1:0]        i_aplic_select_file
 );
 
 ariane_axi::req_t                           req;
@@ -96,7 +101,10 @@ imsic_top #(
     .o_imsic_data       ( ),
     .o_xtopei           ( ),
     .o_Xeip_targets     ( ),
-    .o_imsic_exception  ( )
+    .o_imsic_exception  ( ),
+    .i_aplic_setipnum       ( i_aplic_setipnum      ),
+    .i_aplic_imsic_en       ( i_aplic_imsic_en  ),
+    .i_aplic_select_file    ( i_aplic_select_file   )
 );
 
 endmodule

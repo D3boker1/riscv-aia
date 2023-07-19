@@ -17,27 +17,28 @@
 *               
 */ 
 module imsic_top #(
-   parameter int                                    NR_SRC           = 32   ,
-   parameter int                                    MIN_PRIO         = 6    ,
-   parameter int unsigned                           AXI_ADDR_WIDTH   = 64   ,
-   parameter int unsigned                           AXI_DATA_WIDTH   = 64   ,
-   parameter int unsigned                           AXI_ID_WIDTH     = 10   ,
-   parameter int unsigned                           NR_IMSICS        = 1    ,
-   parameter int unsigned                           NR_VS_FILES_PER_IMSIC  = 0,
-   parameter type                                   axi_req_t        = ariane_axi::req_t ,
-   parameter type                                   axi_resp_t       = ariane_axi::resp_t,
+   parameter int                  NR_SRC           = 32   ,
+   parameter int                  MIN_PRIO         = 6    ,
+   parameter int unsigned         AXI_ADDR_WIDTH   = 64   ,
+   parameter int unsigned         AXI_DATA_WIDTH   = 64   ,
+   parameter int unsigned         AXI_ID_WIDTH     = 10   ,
+   parameter int unsigned         NR_IMSICS        = 1    ,
+   parameter int unsigned         NR_VS_FILES_PER_IMSIC  = 0,
+   parameter type                 axi_req_t        = ariane_axi::req_t ,
+   parameter type                 axi_resp_t       = ariane_axi::resp_t,
    // DO NOT EDIT BY PARAMETER
-   parameter int unsigned                           NR_INTP_FILES     = 2 + NR_VS_FILES_PER_IMSIC,
-   parameter int                                    NR_BITS_SRC      = 32,//(NR_SRC > 31) ? 32 : NR_SRC,
-   parameter int                                    NR_REG           = (NR_SRC < 32) ? 1 : NR_SRC/32,
-   parameter int                                    VS_INTP_FILE_LEN = $clog2(NR_INTP_FILES-2),
-   parameter int                                    NR_SRC_LEN       = $clog2(NR_SRC)
+   parameter int unsigned         NR_INTP_FILES     = 2 + NR_VS_FILES_PER_IMSIC,
+   parameter int                  NR_BITS_SRC      = 32,//(NR_SRC > 31) ? 32 : NR_SRC,
+   parameter int                  NR_REG           = (NR_SRC < 32) ? 1 : NR_SRC/32,
+   parameter int                  INTP_FILE_LEN    = $clog2(NR_INTP_FILES),
+   parameter int                  VS_INTP_FILE_LEN = $clog2(NR_VS_FILES_PER_IMSIC),
+   parameter int                  NR_SRC_LEN       = $clog2(NR_SRC)
 ) (
-   input  logic                                     i_clk           ,
-   input  logic                                     ni_rst          ,
+   input  logic                                                    i_clk           ,
+   input  logic                                                    ni_rst          ,
    /** AXI interface */
-   input  axi_req_t                                 i_req           ,
-   output axi_resp_t                                o_resp          ,
+   input  axi_req_t                                                i_req           ,
+   output axi_resp_t                                               o_resp          ,
    /** CSR interface*/
    input  logic [NR_IMSICS-1:0][1:0]                               i_priv_lvl      ,
    input  logic [NR_IMSICS-1:0][VS_INTP_FILE_LEN:0]                i_vgein         ,
@@ -48,10 +49,12 @@ module imsic_top #(
    output logic [NR_IMSICS-1:0][32-1:0]                            o_imsic_data    ,
    output logic [NR_IMSICS-1:0][NR_INTP_FILES-1:0][NR_SRC_LEN-1:0] o_xtopei        ,
    output logic [NR_IMSICS-1:0][NR_INTP_FILES-1:0]                 o_Xeip_targets  ,
-   output logic [NR_IMSICS-1:0]                                    o_imsic_exception
+   output logic [NR_IMSICS-1:0]                                    o_imsic_exception,
+   /** APLIC interface */
+   input  logic [NR_SRC_LEN-1:0]                                   i_aplic_setipnum,
+   input  logic [NR_IMSICS-1:0]                                    i_aplic_imsic_en,
+   input  logic [INTP_FILE_LEN-1:0]                                i_aplic_select_file
 );
-
-localparam MAX_INTP_FILE_LEN                        = $clog2(NR_INTP_FILES);
 
 localparam PRIV_LVL_M                               = 2'b11;
 localparam PRIV_LVL_HS                              = 2'b10;
@@ -69,7 +72,7 @@ localparam EIP63_OFF                                = 'hBF;
 localparam EIE0_OFF                                 = 'hC0;
 localparam EIE63_OFF                                = 'hFF;
 
-logic [NR_IMSICS-1:0][MAX_INTP_FILE_LEN-1:0]                       select_intp_file_i;
+logic [NR_IMSICS-1:0][INTP_FILE_LEN-1:0]                           select_intp_file_i;
 /** Interrupt files registers */
 logic [NR_IMSICS-1:0][NR_INTP_FILES-1:0][0:0]                      eidelivery_d,   eidelivery_q;
 logic [NR_IMSICS-1:0][NR_INTP_FILES-1:0][NR_SRC_LEN-1:0]           eithreshold_d,  eithreshold_q;
@@ -119,6 +122,8 @@ logic [NR_IMSICS-1:0][NR_INTP_FILES-1:0]                           xeip_targets;
 
 // ================== SELECT REG IN INTP FILE =====================
     for (genvar i = 0; i < NR_IMSICS; i++) begin
+        logic [31:0] target_register;
+        logic [31:0] target_intp;
         always_comb begin
             /** reset val */
             o_imsic_data[i]        = '0;
@@ -127,8 +132,10 @@ logic [NR_IMSICS-1:0][NR_INTP_FILES-1:0]                           xeip_targets;
             eithreshold_d[i]       = eithreshold_q[i];
             eip_d[i]               = eip_q[i];
             eie_d[i]               = eie_q[i];
+            target_register        = '0;
+            target_intp            = '0;
 
-            /** IMSIC channel handler for interrupt file CSRs */
+            /** CSRs channel handler */
             if (i_imsic_we[i]) begin
                 case (i_imsic_addr[i]) inside
                     EIDELIVERY_OFF: begin
@@ -173,8 +180,7 @@ logic [NR_IMSICS-1:0][NR_INTP_FILES-1:0]                           xeip_targets;
                 endcase
             end
 
-            /** For each priv lvl evaluate if some device triggered 
-                an interrupt, and make this interrupt pending */
+            /** AXI channel handler */
             for (int k = 0; k < NR_INTP_FILES; k++) begin
                 if (setipnum_we[i][k] && 
                     ({{32-NR_SRC_LEN{1'b0}}, setipnum[i][k]} <= NR_SRC)) begin
@@ -183,12 +189,25 @@ logic [NR_IMSICS-1:0][NR_INTP_FILES-1:0]                           xeip_targets;
                 end 
             end
 
-            /** If a priv lvl is claiming the intp, unpend the intp */
+            /** APLIC channel handler */
+            if (i_aplic_imsic_en[i] == 1'b1) begin
+                target_register = {{32-NR_SRC_LEN{1'b0}}, i_aplic_setipnum}/32;
+                target_intp     = {{32-NR_SRC_LEN{1'b0}}, i_aplic_setipnum}%32;
+                eip_d[i][target_register+(i_aplic_select_file*NR_REG)]
+                        [target_intp] = 1'b1;
+            end
+
+            /** If a core is claiming the intp, unpend it */
             if (i_imsic_claim[i]) begin
                 eip_d[i][({{32-NR_SRC_LEN{1'b0}}, xtopei[i][select_intp_file_i[i]]}/32)+(select_intp_file_i[i]*NR_REG)]
                     [{{32-NR_SRC_LEN{1'b0}}, xtopei[i][select_intp_file_i[i]]}%32] = 1'b0;
             end
 
+            /** Intp 0 is always 0 for pend and enable */
+            for (int j = 0; j < NR_INTP_FILES; j++) begin
+                eip_d[i][j*NR_REG][0] = 1'b0;
+                eie_d[i][j*NR_REG][0] = 1'b0;
+            end
         end
     end
     
@@ -210,7 +229,7 @@ logic [NR_IMSICS-1:0][NR_INTP_FILES-1:0]                           xeip_targets;
                 xtopei[w][k]           = '0;
                 xeip_targets[w][k]     = '0;
                 for (int i = 0; i < NR_REG; i++) begin
-                    for (int j = 0; j <= NR_BITS_SRC; j++) begin
+                    for (int j = 1; j <= NR_BITS_SRC; j++) begin
                         if ((eie_q[w][(k*NR_REG)+i][j] && eip_q[w][(k*NR_REG)+i][j]) &&
                             ((eithreshold_q[w][k] == 0) || (j[NR_SRC_LEN-1:0] < eithreshold_q[w][k]))) begin
                             xtopei[w][k]           = j[NR_SRC_LEN-1:0];

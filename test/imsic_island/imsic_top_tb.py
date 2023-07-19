@@ -13,6 +13,10 @@ S_MODE          = 1
 M_FILE_ADDR     = 0x24000000
 S_FILE_ADDR     = 0x28000000
 
+M_FILE = 0
+S_FILE = 1
+
+
 SETIPNUM_OFF    = 0x0
 
 EDELIVERY       = 0X70
@@ -30,6 +34,9 @@ class CInputs:
     i_imsic_data                = 0
     i_imsic_we                  = 0
     i_imsic_claim               = 0
+    i_aplic_setipnum            = 0
+    i_aplic_imsic_en            = 0
+    i_aplic_select_file         = 0
 
 class COutputs:
     o_imsic_data                = 0   
@@ -126,6 +133,18 @@ def imsic_read_reg(dut, imsic = 1, addr=0, priv_lvl=M_MODE, vgein=0):
     dut.i_imsic_claim.value = input.i_imsic_claim
     dut.i_imsic_we.value = input.i_imsic_we
 
+def aplic_send_msi(dut, imsic = 1, file=0, intp_id=0):
+    if(imsic == 0):
+        input.i_aplic_imsic_en = 0
+    else:    
+        input.i_aplic_imsic_en = ( 1 << imsic - 1)
+    input.i_aplic_select_file = file
+    input.i_aplic_setipnum = intp_id
+
+    dut.i_aplic_setipnum.value = input.i_aplic_setipnum 
+    dut.i_aplic_imsic_en.value = input.i_aplic_imsic_en 
+    dut.i_aplic_select_file.value = input.i_aplic_select_file 
+
 ##############################################
 # Before running this test make sure that:
 # NR_IMSICS = 1
@@ -170,23 +189,66 @@ async def simple_config_two_imsic(dut):
 
 ##############################################
 # Before running this test make sure that:
+# NR_IMSICS = 2
+# NR_VS_FILES_PER_IMSIC = 0
+# To make sure that intp 0 is always 0
+##############################################
+async def imsic_test_writing_to_intp_zero(dut):
+    # Enable interrupt delivering for M-File in IMSIC 1
+    imsic_write_reg(dut, 1, EDELIVERY, 1, M_MODE)
+    await Timer(ONE_CYCLE, units="ns")
+    # Enable interrupt delivering for S-File in IMSIC 2
+    imsic_write_reg(dut, 2, EDELIVERY, 1, S_MODE)
+    await Timer(ONE_CYCLE, units="ns")
+    # Enable interrupt 0 in S-File in IMSIC 2
+    imsic_write_reg(dut, 2, EIE0, 0x00000001, S_MODE)
+    await Timer(ONE_CYCLE, units="ns")
+    imsic_stop_write(dut)
+    await Timer(ONE_CYCLE, units="ns")
+    # Enable interrupt 0 in M-File in IMSIC 1
+    imsic_write_reg(dut, 1, EIE0, 0x00000001, M_MODE)
+    await Timer(ONE_CYCLE, units="ns")
+    imsic_stop_write(dut)
+    await Timer(ONE_CYCLE, units="ns")
+
+    # Simulate a dummy device write to S-File 
+    aplic_send_msi(dut, 2, S_FILE, 0)
+    await Timer(ONE_CYCLE, units="ns")
+    aplic_send_msi(dut, 0, 0, 0)
+    await Timer(ONE_CYCLE*4, units="ns")
+
+    aplic_send_msi(dut, 1, M_FILE, 0)
+    await Timer(ONE_CYCLE, units="ns")
+    aplic_send_msi(dut, 0, 0, 0)
+    await Timer(ONE_CYCLE*4, units="ns")
+    
+    #clear the pending interrupt
+    await Timer(ONE_CYCLE*3, units="ns")
+    imsic_write_xtopei(dut, 1, S_MODE)
+
+    #clear the pending interrupt
+    await Timer(ONE_CYCLE*3, units="ns")
+    imsic_write_xtopei(dut, 1, M_MODE)
+
+##############################################
+# Before running this test make sure that:
 # NR_IMSICS = 1
 # NR_VS_FILES_PER_IMSIC = 0
 ##############################################
 async def imsic_with_m_s_files(dut):
     # Enable interrupt delivering for M-File
-    imsic_write_reg(dut, EDELIVERY, 1, M_MODE)
+    imsic_write_reg(dut, 1, EDELIVERY, 1, M_MODE)
     await Timer(ONE_CYCLE, units="ns")
     # Enable interrupt delivering for S-File
-    imsic_write_reg(dut, EDELIVERY, 1, S_MODE)
+    imsic_write_reg(dut, 1, EDELIVERY, 1, S_MODE)
     await Timer(ONE_CYCLE, units="ns")
     # Enable interrupt 30 in S-File
-    imsic_write_reg(dut, EIE0, 0x40000000, S_MODE)
+    imsic_write_reg(dut, 1, EIE0, 0x40000000, S_MODE)
     await Timer(ONE_CYCLE, units="ns")
     imsic_stop_write(dut)
     await Timer(ONE_CYCLE, units="ns")
     # Enable interrupt 2 in M-File
-    imsic_write_reg(dut, EIE0, 0x00000004, M_MODE)
+    imsic_write_reg(dut, 1, EIE0, 0x00000004, M_MODE)
     await Timer(ONE_CYCLE, units="ns")
     imsic_stop_write(dut)
     await Timer(ONE_CYCLE, units="ns")
@@ -195,19 +257,56 @@ async def imsic_with_m_s_files(dut):
     axi_write_reg(dut,0x28000000,30)
     await Timer(ONE_CYCLE, units="ns")
     axi_disable_write(dut)
-    await Timer(ONE_CYCLE*4, units="ns")
-
-    axi_write_reg(dut,0x24000000,2)
-    await Timer(ONE_CYCLE, units="ns")
-    axi_disable_write(dut)
     
     #clear the pending interrupt
     await Timer(ONE_CYCLE*3, units="ns")
-    imsic_write_xtopei(dut, S_MODE)
+    imsic_write_xtopei(dut, 1, S_MODE)
 
     #clear the pending interrupt
     await Timer(ONE_CYCLE*3, units="ns")
-    imsic_write_xtopei(dut, M_MODE)
+    imsic_write_xtopei(dut, 1, M_MODE)
+
+##############################################
+# Before running this test make sure that:
+# NR_IMSICS = 1
+# NR_VS_FILES_PER_IMSIC = 0
+##############################################
+async def imsic_with_m_s_files_aplic_intf(dut):
+    # Enable interrupt delivering for M-File
+    imsic_write_reg(dut, 1, EDELIVERY, 1, M_MODE)
+    await Timer(ONE_CYCLE, units="ns")
+    # Enable interrupt delivering for S-File
+    imsic_write_reg(dut, 1, EDELIVERY, 1, S_MODE)
+    await Timer(ONE_CYCLE, units="ns")
+    # Enable interrupt 30 in S-File
+    imsic_write_reg(dut, 1, EIE0, 0x40000000, S_MODE)
+    await Timer(ONE_CYCLE, units="ns")
+    imsic_stop_write(dut)
+    await Timer(ONE_CYCLE, units="ns")
+    # Enable interrupt 2 in M-File
+    imsic_write_reg(dut, 1, EIE0, 0x00000004, M_MODE)
+    await Timer(ONE_CYCLE, units="ns")
+    imsic_stop_write(dut)
+    await Timer(ONE_CYCLE, units="ns")
+
+    # Simulate a dummy device write to S-File 
+    aplic_send_msi(dut, 1, S_FILE, 30)
+    await Timer(ONE_CYCLE, units="ns")
+    aplic_send_msi(dut, 0, 0, 0)
+    await Timer(ONE_CYCLE*4, units="ns")
+
+    aplic_send_msi(dut, 1, M_FILE, 2)
+    await Timer(ONE_CYCLE, units="ns")
+    aplic_send_msi(dut, 0, 0, 0)
+    await Timer(ONE_CYCLE*4, units="ns")
+    
+    #clear the pending interrupt
+    await Timer(ONE_CYCLE*3, units="ns")
+    imsic_write_xtopei(dut, 1, S_MODE)
+
+    #clear the pending interrupt
+    await Timer(ONE_CYCLE*3, units="ns")
+    imsic_write_xtopei(dut, 1, M_MODE)
 
 ##############################################
 # Before running this test make sure that:
@@ -241,6 +340,49 @@ async def two_imsic_with_m_s_files(dut):
     axi_write_reg(dut,0x24000000,2)
     await Timer(ONE_CYCLE, units="ns")
     axi_disable_write(dut)
+    
+    #clear the pending interrupt
+    await Timer(ONE_CYCLE*3, units="ns")
+    imsic_write_xtopei(dut, 2, S_MODE)
+
+    #clear the pending interrupt
+    await Timer(ONE_CYCLE*3, units="ns")
+    imsic_write_xtopei(dut, 1, M_MODE)
+
+##############################################
+# Before running this test make sure that:
+# NR_IMSICS = 2
+# NR_VS_FILES_PER_IMSIC = 0
+##############################################
+async def two_imsic_with_m_s_files_aplic_intf(dut):
+    # Enable interrupt delivering for M-File in IMSIC 1
+    imsic_write_reg(dut, 1, EDELIVERY, 1, M_MODE)
+    await Timer(ONE_CYCLE, units="ns")
+    # Enable interrupt delivering for S-File in IMSIC 2
+    imsic_write_reg(dut, 1, EDELIVERY, 2, S_MODE)
+    await Timer(ONE_CYCLE, units="ns")
+    # Enable interrupt 30 in S-File in IMSIC 2
+    imsic_write_reg(dut, 2, EIE0, 0x40000000, S_MODE)
+    await Timer(ONE_CYCLE, units="ns")
+    imsic_stop_write(dut)
+    await Timer(ONE_CYCLE, units="ns")
+    # Enable interrupt 2 in M-File in IMSIC 1
+    imsic_write_reg(dut, 1, EIE0, 0x00000004, M_MODE)
+    await Timer(ONE_CYCLE, units="ns")
+    imsic_stop_write(dut)
+    await Timer(ONE_CYCLE, units="ns")
+
+    # Simulate a dummy device write to S-File 
+    aplic_send_msi(dut, 2, S_FILE, 30)
+    await Timer(ONE_CYCLE, units="ns")
+    aplic_send_msi(dut, 0, 0, 0)
+    await Timer(ONE_CYCLE*4, units="ns")
+
+    aplic_send_msi(dut, 1, M_FILE, 2)
+    await Timer(ONE_CYCLE, units="ns")
+    aplic_send_msi(dut, 0, 0, 0)
+    await Timer(ONE_CYCLE*4, units="ns")
+
     
     #clear the pending interrupt
     await Timer(ONE_CYCLE*3, units="ns")
@@ -482,6 +624,142 @@ async def four_imsic_with_vs_files(dut):
     await Timer(ONE_CYCLE*3, units="ns")
     imsic_write_xtopei(dut, FILE_UT_2, S_MODE, 1)
 
+##############################################
+# Before running this test make sure that:
+# NR_IMSICS = 4
+# NR_VS_FILES_PER_IMSIC = 1
+##############################################
+async def four_imsic_with_vs_files_aplic_intf(dut):
+    FILE_UT_1 = 2
+    FILE_UT_2 = 4
+    # Enable interrupt delivering for M-File
+    imsic_write_reg(dut, FILE_UT_1, EDELIVERY, 1, M_MODE, 0)
+    await Timer(ONE_CYCLE, units="ns")
+    # Enable interrupt delivering for S-File
+    imsic_write_reg(dut, FILE_UT_1, EDELIVERY, 1, S_MODE, 0)
+    await Timer(ONE_CYCLE, units="ns")
+    # Enable interrupt delivering for VS-File
+    imsic_write_reg(dut, FILE_UT_1, EDELIVERY, 1, S_MODE, 1)
+    await Timer(ONE_CYCLE, units="ns")
+    # Enable interrupt delivering for M-File
+    imsic_write_reg(dut, FILE_UT_2, EDELIVERY, 1, M_MODE, 0)
+    await Timer(ONE_CYCLE, units="ns")
+    # Enable interrupt delivering for S-File
+    imsic_write_reg(dut, FILE_UT_2, EDELIVERY, 1, S_MODE, 0)
+    await Timer(ONE_CYCLE, units="ns")
+    # Enable interrupt delivering for VS-File
+    imsic_write_reg(dut, FILE_UT_2, EDELIVERY, 1, S_MODE, 1)
+    await Timer(ONE_CYCLE, units="ns")
+    
+
+    # Enable interrupt 30 in S-File
+    imsic_write_reg(dut, FILE_UT_1, EIE0, 0x40000000, S_MODE, 0)
+    await Timer(ONE_CYCLE, units="ns")
+    imsic_stop_write(dut)
+    await Timer(ONE_CYCLE, units="ns")
+    # Enable interrupt 2 in M-File
+    imsic_write_reg(dut, FILE_UT_1, EIE0, 0x00000004, M_MODE, 0)
+    await Timer(ONE_CYCLE, units="ns")
+    imsic_stop_write(dut)
+    await Timer(ONE_CYCLE, units="ns")
+    # Enable interrupt 13 in VS-File
+    imsic_write_reg(dut, FILE_UT_1, EIE0, 0x00002000, S_MODE, 1)
+    await Timer(ONE_CYCLE, units="ns")
+    imsic_stop_write(dut)
+    await Timer(ONE_CYCLE, units="ns")
+    # Enable interrupt 30 in S-File
+    imsic_write_reg(dut, FILE_UT_2, EIE0, 0x40000000, S_MODE, 0)
+    await Timer(ONE_CYCLE, units="ns")
+    imsic_stop_write(dut)
+    await Timer(ONE_CYCLE, units="ns")
+    # Enable interrupt 2 in M-File
+    imsic_write_reg(dut, FILE_UT_2, EIE0, 0x00000004, M_MODE, 0)
+    await Timer(ONE_CYCLE, units="ns")
+    imsic_stop_write(dut)
+    await Timer(ONE_CYCLE, units="ns")
+    # Enable interrupt 13 in VS-File
+    imsic_write_reg(dut, FILE_UT_2, EIE0, 0x00002000, S_MODE, 1)
+    await Timer(ONE_CYCLE, units="ns")
+    imsic_stop_write(dut)
+    await Timer(ONE_CYCLE, units="ns")
+
+    # Simulate a device write through APLIC
+    # target IMSIC: FILE_UT_1
+    # target interrupt: 30
+    # target file: S
+    aplic_send_msi(dut, FILE_UT_1, S_FILE, 30)
+    await Timer(ONE_CYCLE, units="ns")
+    aplic_send_msi(dut, 0, 0, 0)
+    await Timer(ONE_CYCLE*4, units="ns")
+
+    # Simulate a device write through AXI port
+    # target IMSIC: FILE_UT_1
+    # target interrupt: 2
+    # target file: M
+    axi_write_reg(dut,0x24000000 + (FILE_UT_1-1)*0x1000,2)
+    await Timer(ONE_CYCLE, units="ns")
+    axi_disable_write(dut)
+    await Timer(ONE_CYCLE*4, units="ns")
+
+    # Simulate a device write through APLIC
+    # target IMSIC: FILE_UT_1
+    # target interrupt: 13
+    # target file: VS
+    aplic_send_msi(dut, FILE_UT_1, S_FILE+1, 13)
+    await Timer(ONE_CYCLE, units="ns")
+    aplic_send_msi(dut, 0, 0, 0)
+    await Timer(ONE_CYCLE*4, units="ns")
+
+    # Simulate a device write through AXI port
+    # target IMSIC: FILE_UT_2
+    # target interrupt: 30
+    # target file: S
+    axi_write_reg(dut,0x28000000  + (FILE_UT_2-1)*2*0x1000,30)
+    await Timer(ONE_CYCLE, units="ns")
+    axi_disable_write(dut)
+    await Timer(ONE_CYCLE*4, units="ns")
+
+    # Simulate a device write through APLIC
+    # target IMSIC: FILE_UT_2
+    # target interrupt: 2
+    # target file: M
+    aplic_send_msi(dut, FILE_UT_2, M_FILE, 2)
+    await Timer(ONE_CYCLE, units="ns")
+    aplic_send_msi(dut, 0, 0, 0)
+    await Timer(ONE_CYCLE*4, units="ns")
+
+    # Simulate a device write through AXI port
+    # target IMSIC: FILE_UT_2
+    # target interrupt: 13
+    # target file: VS
+    axi_write_reg(dut,0x28001000 + (FILE_UT_2-1)*2*0x1000,13)
+    await Timer(ONE_CYCLE, units="ns")
+    axi_disable_write(dut)
+    
+    #clear the pending interrupt
+    await Timer(ONE_CYCLE*3, units="ns")
+    imsic_write_xtopei(dut, FILE_UT_1, S_MODE, 0)
+
+    #clear the pending interrupt
+    await Timer(ONE_CYCLE*3, units="ns")
+    imsic_write_xtopei(dut, FILE_UT_1, M_MODE, 0)
+
+    #clear the pending interrupt
+    await Timer(ONE_CYCLE*3, units="ns")
+    imsic_write_xtopei(dut, FILE_UT_1, S_MODE, 1)
+
+    #clear the pending interrupt
+    await Timer(ONE_CYCLE*3, units="ns")
+    imsic_write_xtopei(dut, FILE_UT_2, S_MODE, 0)
+
+    #clear the pending interrupt
+    await Timer(ONE_CYCLE*3, units="ns")
+    imsic_write_xtopei(dut, FILE_UT_2, M_MODE, 0)
+
+    #clear the pending interrupt
+    await Timer(ONE_CYCLE*3, units="ns")
+    imsic_write_xtopei(dut, FILE_UT_2, S_MODE, 1)
+
 async def generate_clock(dut):
     """Generate clock pulses."""
 
@@ -509,7 +787,7 @@ async def regctl_unit_test(dut):
     dut.ni_rst.value = 1
     await Timer(1, units="ns")
 
-    await cocotb.start(four_imsic_with_vs_files(dut))
+    await cocotb.start(debug_config(dut))
     
     await Timer(500, units="ns")
     
