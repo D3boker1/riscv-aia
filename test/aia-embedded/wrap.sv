@@ -3,7 +3,7 @@ module aia_embedded_wrapper #(
     parameter int                                       NR_DOMAINS    = 2           ,
     parameter int                                       NR_SRC        = 32          ,
     parameter int unsigned                              NR_IMSICS     = 4           ,
-    parameter int unsigned                              NR_VS_FILES_PER_IMSIC  = 0  ,
+    parameter int unsigned                              NR_VS_FILES_PER_IMSIC  = 1  ,
     parameter int                                       MIN_PRIO        = 6         ,
     parameter int unsigned                              AXI_ADDR_WIDTH  = 64        ,
     parameter int unsigned                              AXI_DATA_WIDTH  = 64        ,

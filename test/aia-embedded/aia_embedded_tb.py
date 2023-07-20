@@ -391,11 +391,15 @@ async def test_aia_embedded_m_s_vs_files(dut):
 async def n_imsic_aia_embedded_m_s_files(dut):
     IMSIC_UT_1 = 1
     IMSIC_UT_2 = 4
+    IMSIC_UT_3 = 3
     # Enable interrupt delivering for S-File in IMSIC 1
     imsic_write_reg(dut, IMSIC_UT_1, EDELIVERY, 1, S_MODE)
     await Timer(ONE_CYCLE, units="ns")
     # Enable interrupt delivering for M-File in IMSIC 2
     imsic_write_reg(dut, IMSIC_UT_2, EDELIVERY, 1, M_MODE)
+    await Timer(ONE_CYCLE, units="ns")
+    # Enable interrupt delivering for VS-File in IMSIC 3
+    imsic_write_reg(dut, IMSIC_UT_3, EDELIVERY, 1, S_MODE, 1)
     await Timer(ONE_CYCLE, units="ns")
     # Enable interrupt 14 in M-File in IMSIC 2
     imsic_write_reg(dut, IMSIC_UT_2, EIE0, 0x4000, M_MODE)
@@ -404,6 +408,11 @@ async def n_imsic_aia_embedded_m_s_files(dut):
     await Timer(ONE_CYCLE, units="ns")
     # Enable interrupt 23 in S-File
     imsic_write_reg(dut, IMSIC_UT_1, EIE0, 0x800000, S_MODE)
+    await Timer(ONE_CYCLE, units="ns")
+    imsic_stop_write(dut)
+    await Timer(ONE_CYCLE, units="ns")
+    # Enable interrupt 1 in VS-File in IMSIC 3
+    imsic_write_reg(dut, IMSIC_UT_3, EIE0, 0x0002, S_MODE, 1)
     await Timer(ONE_CYCLE, units="ns")
     imsic_stop_write(dut)
     await Timer(ONE_CYCLE, units="ns")
@@ -421,15 +430,24 @@ async def n_imsic_aia_embedded_m_s_files(dut):
     # delegate intp 23 to S domain
     axi_write_reg(dut, SOURCECFG_M_BASE+(SOURCECFG_OFF * 22), DELEGATE_SRC)
     await Timer(4, units="ns")
+    # delegate intp 1 to S domain
+    axi_write_reg(dut, SOURCECFG_M_BASE+(SOURCECFG_OFF * 0), DELEGATE_SRC)
+    await Timer(4, units="ns")
     # Make source 23 active in S domain, edge-sensitive rising edge
     axi_write_reg(dut, SOURCECFG_S_BASE+(SOURCECFG_OFF * 22), 4)
+    await Timer(4, units="ns")
+    # Make source 1 active in S domain, edge-sensitive rising edge
+    axi_write_reg(dut, SOURCECFG_S_BASE+(SOURCECFG_OFF * 0), 4)
     await Timer(4, units="ns")
 
     # Make TARGET 14 in M domain, EEID = 14, Hart = IMSIC_UT_2, guest = 0
     axi_write_reg(dut, TARGET_M_BASE+(TARGET_OFF * 13), ((IMSIC_UT_2-1) << 18) | (14 << 0))
     await Timer(4, units="ns")
-    # Make TARGET 23 in S domain, EEID = 23, Hart = 0, guest = 0
-    axi_write_reg(dut, TARGET_S_BASE+(TARGET_OFF * 22), (23 << 0))
+    # Make TARGET 23 in S domain, EEID = 23, Hart = IMSIC_UT_1, guest = 0
+    axi_write_reg(dut, TARGET_S_BASE+(TARGET_OFF * 22), ((IMSIC_UT_1-1) << 18) | (23 << 0))
+    await Timer(4, units="ns")
+    # Make TARGET 1 in S domain, EEID = 23, Hart = IMSIC_UT_3, guest = 1
+    axi_write_reg(dut, TARGET_S_BASE+(TARGET_OFF * 0), ((IMSIC_UT_3-1) << 18) | (1 << 12) | (1 << 0))
     await Timer(4, units="ns")
 
     # Enable interrupt 14 in M domain
@@ -437,6 +455,9 @@ async def n_imsic_aia_embedded_m_s_files(dut):
     await Timer(4, units="ns")
     # Enable interrupt 23 in S domain
     axi_write_reg(dut, SETIENUM_S_BASE, 23)
+    await Timer(4, units="ns")
+    # Enable interrupt 23 in S domain
+    axi_write_reg(dut, SETIENUM_S_BASE, 1)
     await Timer(4, units="ns")
 
     # Write value 14 for setipnum in M domain
@@ -458,6 +479,15 @@ async def n_imsic_aia_embedded_m_s_files(dut):
     dut.i_sources.value   = source
     await Timer(10, units="ns")
 
+    # set interrupt 1 (to trigger the raising edge)
+    source                = set_or_reg(source, 1, 1, 1)
+    dut.i_sources.value   = source
+    await Timer(4, units="ns")
+    # reset source lines
+    source                = 0
+    dut.i_sources.value   = source
+    await Timer(10, units="ns")
+
     # clear the pending interrupt 14
     await Timer(ONE_CYCLE*3, units="ns")
     imsic_write_xtopei(dut, IMSIC_UT_2, M_MODE)
@@ -468,6 +498,13 @@ async def n_imsic_aia_embedded_m_s_files(dut):
     # clear the pending interrupt 23
     await Timer(ONE_CYCLE*3, units="ns")
     imsic_write_xtopei(dut, IMSIC_UT_1, S_MODE)
+    await Timer(ONE_CYCLE, units="ns")
+    imsic_stop_write(dut)
+    await Timer(ONE_CYCLE, units="ns")
+
+    # clear the pending interrupt 1
+    await Timer(ONE_CYCLE*3, units="ns")
+    imsic_write_xtopei(dut, IMSIC_UT_3, S_MODE, 1)
     await Timer(ONE_CYCLE, units="ns")
     imsic_stop_write(dut)
     await Timer(ONE_CYCLE, units="ns")
