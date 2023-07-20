@@ -1,7 +1,6 @@
 
 module imsic_top_wrapper #(
     parameter int                           NR_SRC          = 30,
-    parameter int                           MIN_PRIO        = 6 ,
     parameter int unsigned                  NR_IMSICS       = 1,
     parameter int unsigned                  NR_VS_FILES_PER_IMSIC  = 0,
     parameter int unsigned                  AXI_ADDR_WIDTH  = 64,
@@ -79,9 +78,8 @@ always_comb begin
 
 end
 
-imsic_top #(
+imsic_island_top #(
     .NR_SRC             ( NR_SRC            ),
-    .MIN_PRIO           ( MIN_PRIO          ),
     .NR_IMSICS          ( NR_IMSICS         ),
     .NR_VS_FILES_PER_IMSIC      ( NR_VS_FILES_PER_IMSIC     ),
     .AXI_ID_WIDTH       ( 4                 ),

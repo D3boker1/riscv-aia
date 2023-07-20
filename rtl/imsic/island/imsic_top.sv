@@ -16,9 +16,8 @@
 *   Description: Implements the IMSIC IP; 
 *               
 */ 
-module imsic_top #(
+module imsic_island_top #(
    parameter int                  NR_SRC           = 32   ,
-   parameter int                  MIN_PRIO         = 6    ,
    parameter int unsigned         AXI_ADDR_WIDTH   = 64   ,
    parameter int unsigned         AXI_DATA_WIDTH   = 64   ,
    parameter int unsigned         AXI_ID_WIDTH     = 10   ,
