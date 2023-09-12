@@ -109,11 +109,11 @@ always_comb begin : basic_interconnect
       o_req_msi.b_ready   = axi_req_s_domain.b_ready ;
       axi_resp_s_domain.w_ready  = i_resp_msi.w_ready;
    end else begin
-      o_reqo_req_msi.aw        = axi_req_m_domain.aw ;
-      o_reqo_req_msi.aw_valid  = axi_req_m_domain.aw_valid;
-      o_reqo_req_msi.w         = axi_req_m_domain.w  ;
-      o_reqo_req_msi.w_valid   = axi_req_m_domain.w_valid ;
-      o_reqo_req_msi.b_ready   = axi_req_m_domain.b_ready ;
+      o_req_msi.aw        = axi_req_m_domain.aw ;
+      o_req_msi.aw_valid  = axi_req_m_domain.aw_valid;
+      o_req_msi.w         = axi_req_m_domain.w  ;
+      o_req_msi.w_valid   = axi_req_m_domain.w_valid ;
+      o_req_msi.b_ready   = axi_req_m_domain.b_ready ;
       axi_resp_m_domain.w_ready  = i_resp_msi.w_ready;
    end
 end

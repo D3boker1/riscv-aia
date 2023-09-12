@@ -74,6 +74,20 @@ always_ff @( posedge i_clk or negedge ni_rst) begin
    end
 end
 
+/**
+ * AIA Counter
+ */
+logic [31:0] counter_timer;
+logic counter_rst;
+aplic_counter aplic_counter_timer (
+   .clk_i            ( i_clk              ),
+   .rst_sys_ni       ( ni_rst             ),   
+   .start_i          ( sync_irq_src[1][5] ),
+   .counter_rst_i    ( counter_rst        ),      
+   .stop_i           ( |o_Xeip_targets    ), // Pedreirismo... parte so suposto que não recebemos mais nenhuma interrupção no entretanto
+   .counter_o        ( counter_timer      )           
+);
+
 /** APLIC Domain with IMSIC island */
 aplic_domain_top #(
    .NR_DOMAINS              ( NR_DOMAINS            ),
@@ -103,7 +117,9 @@ aplic_domain_top #(
    .o_Xeip_targets   ( o_Xeip_targets     ),
    .o_imsic_exception( o_imsic_exception  ),
    .i_imsic_req      ( i_imsic_req        ),
-   .o_imsic_resp     ( o_imsic_resp       )    
+   .o_imsic_resp     ( o_imsic_resp       ),
+   .i_counter_timer  ( counter_timer      ),   
+   .o_counter_rst    ( counter_rst        )
 );
 
 endmodule

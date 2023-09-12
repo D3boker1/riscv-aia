@@ -44,6 +44,8 @@ module aplic_domain_regctl #(
     /** Register config: AXI interface From/To system bus */
     input   reg_req_t                                               i_req_cfg           ,
     output  reg_rsp_t                                               o_resp_cfg          ,
+    input   logic [31:0]                                            i_counter_timer     ,
+    output  logic                                                   o_counter_rst       ,
     /** Gateway */
     output  logic [NR_SRC-1:1][10:0]                                o_sourcecfg         ,
     output  logic [NR_REG:0][NR_BITS_SRC-1:0]                       o_sugg_setip        ,
@@ -284,9 +286,9 @@ logic [NR_DOMAINS-1:0][NR_IDCs:0][1:0]              iforce_ctl;
     .o_clrienum_we          ( clrienum_we       ),
     .o_clrienum_re          (),
     // Register: setipnum_le
-    .i_setipnum_le          (),
+    .i_setipnum_le          ( {i_counter_timer, 32'h0}   ),
     .o_setipnum_le          (),
-    .o_setipnum_le_we       (),
+    .o_setipnum_le_we       ( {o_counter_rst, 1'h0}     ),
     .o_setipnum_le_re       (),
     // Register: setipnum_be
     .i_setipnum_be          (),

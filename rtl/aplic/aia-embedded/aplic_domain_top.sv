@@ -55,7 +55,10 @@ module aplic_domain_top #(
    output logic [NR_IMSICS-1:0]                                      o_imsic_exception ,
    /** IMSIC island AXI interface*/
    input   axi_req_t                                                 i_imsic_req       ,
-   output  axi_resp_t                                                o_imsic_resp
+   output  axi_resp_t                                                o_imsic_resp      ,
+   /** Debug signals for AIA counter */
+   input logic [31:0 ]                                               i_counter_timer   ,
+   output  logic                                                     o_counter_rst
 );
 // ================== INTERCONNECTION SIGNALS =====================
    logic [NR_SRC-1:1]                                      intp_domain         ;
@@ -158,6 +161,8 @@ module aplic_domain_top #(
       .ni_rst                 ( ni_rst                ),
       .i_req_cfg              ( i_req_cfg             ),
       .o_resp_cfg             ( o_resp_cfg            ),
+      .i_counter_timer        ( i_counter_timer       ),
+      .o_counter_rst          ( o_counter_rst         ),
       /** Gateway */
       .o_sourcecfg            ( sourcecfg             ),
       .o_sugg_setip           ( sugg_setip            ),
