@@ -10,10 +10,12 @@ module aplic_counter (
     logic [31:0] counter_d, counter_q; // 32-bit counter register
     logic start_detected, stop_detected;
     logic stop_masked;
-    
+    logic counter_rst_n;
+
+    assign counter_rst_n = ~counter_rst_i;
     aia_edge_detect aia_edge_detect_start (
         .clk_i  ( clk_i             ),
-        .rst_ni ( counter_rst_i     ), 
+        .rst_ni ( counter_rst_n     ), 
         .d_i    ( start_i           ),
         .re_o   ( start_detected    )
     );
@@ -21,7 +23,7 @@ module aplic_counter (
     assign stop_masked = start_detected & stop_i;
     aia_edge_detect aia_edge_detect_stop (
         .clk_i  ( clk_i             ),
-        .rst_ni ( counter_rst_i     ), 
+        .rst_ni ( counter_rst_n     ), 
         .d_i    ( stop_masked       ),
         .re_o   ( stop_detected     )
     );
