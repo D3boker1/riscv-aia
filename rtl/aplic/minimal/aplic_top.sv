@@ -34,6 +34,7 @@ module aplic_top #(
    input  logic                                 i_clk                ,
    input  logic                                 ni_rst               ,
    input  logic [NR_SRC-1:0]                    i_irq_sources        ,
+   input  logic                                 i_stop_counter       , 
    /** APLIC domain interface */
    input  reg_req_t                             i_req_cfg            ,
    output reg_rsp_t                             o_resp_cfg           ,
@@ -64,6 +65,20 @@ always_ff @( posedge i_clk or negedge ni_rst) begin
    end
 end
 
+/**
+ * AIA Counter
+ */
+logic [31:0] counter_timer;
+logic counter_rst;
+aplic_counter aplic_counter_timer (
+   .clk_i            ( i_clk              ),
+   .rst_sys_ni       ( ni_rst             ),   
+   .start_i          ( sync_irq_src[1][5] ),
+   .counter_rst_i    ( counter_rst        ),      
+   .stop_i           ( i_stop_counter     ), 
+   .counter_o        ( counter_timer      )           
+);
+
 /** Minimal APLIC Domain */
 aplic_domain_top #(
    .NR_DOMAINS       ( NR_DOMAINS         ),
@@ -78,6 +93,8 @@ aplic_domain_top #(
    .i_req_cfg        ( i_req_cfg          ),
    .o_resp_cfg       ( o_resp_cfg         ),
    .i_irq_sources    ( sync_irq_src[1]    ),
+   .i_counter_timer  ( counter_timer      ),   
+   .o_counter_rst    ( counter_rst        ),
    `ifdef DIRECT_MODE
    .o_Xeip_targets   ( Xeip_targets       )
    `elsif MSI_MODE

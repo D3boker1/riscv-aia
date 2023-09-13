@@ -39,6 +39,9 @@ module aplic_domain_top #(
    input  reg_req_t                             i_req_cfg        ,
    output reg_rsp_t                             o_resp_cfg       ,
    input  logic [NR_SRC-1:0]                    i_irq_sources    ,
+   /** Debug signals for AIA counter */
+   input logic [31:0 ]                          i_counter_timer  ,
+   output  logic                                o_counter_rst    ,
    /**  interface for direct mode */
    `ifdef DIRECT_MODE
    /** Interrupt Notification to Harts. One per priv. level per hart. */
@@ -142,6 +145,8 @@ module aplic_domain_top #(
       .ni_rst                 ( ni_rst                ),
       .i_req_cfg              ( i_req_cfg             ),
       .o_resp_cfg             ( o_resp_cfg            ),
+      .i_counter_timer        ( i_counter_timer       ),
+      .o_counter_rst          ( o_counter_rst         ),
       /** Gateway */
       .o_sourcecfg            ( sourcecfg             ),
       .o_sugg_setip           ( sugg_setip            ),
