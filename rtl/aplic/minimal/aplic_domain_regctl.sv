@@ -46,6 +46,8 @@ module aplic_domain_regctl #(
     output  reg_rsp_t                                               o_resp_cfg          ,
     input   logic [31:0]                                            i_counter_timer     ,
     output  logic                                                   o_counter_rst       ,
+    output  logic                                                   o_start_interf_0    ,
+    output  logic                                                   o_start_interf_1    ,
     /** Gateway */
     output  logic [NR_SRC-1:1][10:0]                                o_sourcecfg         ,
     output  logic [NR_REG:0][NR_BITS_SRC-1:0]                       o_sugg_setip        ,
@@ -293,8 +295,8 @@ logic [NR_DOMAINS-1:0][NR_IDCs:0][1:0]              iforce_ctl;
     // Register: setipnum_be
     .i_setipnum_be          (),
     .o_setipnum_be          (),
-    .o_setipnum_be_we       (),
-    .o_setipnum_be_re       (),
+    .o_setipnum_be_we       ( {o_start_interf_0, 1'b0} ),
+    .o_setipnum_be_re       ( {o_start_interf_1, 1'b0} ),
     // Register: target
     .i_target               ( target_full       ),
     .o_target               ( target_o          ),

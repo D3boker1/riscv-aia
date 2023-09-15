@@ -46,7 +46,7 @@ module axi_lite_write_master #(
             req_o.aw.addr   <= '0;
             req_o.aw.prot   <= '0;
             req_o.aw_valid  <= '0;
-            req_o.aw.id     <= '0;
+            req_o.aw.id     <= id_i;
             req_o.w.data    <= '0;
             req_o.w.strb    <= '0;
             req_o.w_valid   <= '0;

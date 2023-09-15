@@ -34,7 +34,9 @@ module aplic_top #(
    input  logic                                 i_clk                ,
    input  logic                                 ni_rst               ,
    input  logic [NR_SRC-1:0]                    i_irq_sources        ,
-   input  logic                                 i_stop_counter       , 
+   input  logic                                 i_stop_counter       ,
+   output  logic                                o_start_interf_0     ,
+   output  logic                                o_start_interf_1     ,
    /** APLIC domain interface */
    input  reg_req_t                             i_req_cfg            ,
    output reg_rsp_t                             o_resp_cfg           ,
@@ -95,6 +97,8 @@ aplic_domain_top #(
    .i_irq_sources    ( sync_irq_src[1]    ),
    .i_counter_timer  ( counter_timer      ),   
    .o_counter_rst    ( counter_rst        ),
+   .o_start_interf_0 ( o_start_interf_0   ),
+   .o_start_interf_1 ( o_start_interf_1   ),
    `ifdef DIRECT_MODE
    .o_Xeip_targets   ( Xeip_targets       )
    `elsif MSI_MODE
