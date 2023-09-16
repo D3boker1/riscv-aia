@@ -71,8 +71,9 @@ module axi_lite_write_master #(
                     end
                 end
                 AWAIT_RESPONSE: begin
-                    req_o.aw.addr   <= '0;
+                    // req_o.aw.addr   <= '0;
                     if (resp_i.w_ready) begin
+                        req_o.aw.addr   <= addr_i;
                         req_o.aw_valid  <= '0;
                         busy_o          <= 1'b1; 
                         req_o.w.last    <= '0;
