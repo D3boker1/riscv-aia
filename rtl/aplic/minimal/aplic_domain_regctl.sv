@@ -611,6 +611,7 @@ logic [NR_DOMAINS-1:0][NR_IDCs:0][1:0]              iforce_ctl;
   end
 
   always_comb begin : target_rebuild
+    /* verilator lint_off WIDTHCONCAT */
     target_full = '0;
     for (int i = 0; i < NR_DOMAINS; i++) begin
         for (int j = 1; j < NR_SRC; j++) begin
