@@ -7,9 +7,9 @@
 
 module aplic_top_minimal_wrapper #(
     parameter int                                       NR_DOMAINS  = 2             ,
-    parameter int                                       NR_SRC      = 32            ,
+    parameter int                                       NR_SRC      = 32           ,
     parameter int                                       MIN_PRIO    = 6             ,
-    parameter int                                       NR_IDCs     = 1             
+    parameter int                                       NR_IDCs     = 2             
 ) (
     input   logic                                       i_clk                       ,
     input   logic                                       ni_rst                      ,
