@@ -39,7 +39,7 @@ module aplic_top #(
     * ║ DOMAIN[S] ║ DOMAIN[M] ║ ... ║ DOMAIN[S] ║ DOMAIN[M] ║ DOMAIN[S] ║ DOMAIN[M] ║
     * ╚═══════════╩═══════════╩═════╩═══════════╩═══════════╩═══════════╩═══════════╝ 
     */
-   ,output logic [(NR_IDCs*NR_DOMAINS)-1:0]      o_Xeip_targets
+   ,output logic [NR_IDCs-1:0][NR_DOMAINS-1:0]  o_Xeip_targets
    `elsif MSI_MODE
    ,output ariane_axi::req_t                    o_req_msi            ,
    input   ariane_axi::resp_t                   i_resp_msi
@@ -86,9 +86,9 @@ aplic_domain_top #(
 );
 
 `ifdef DIRECT_MODE
-for (genvar i = 0; i < NR_DOMAINS; i++) begin
-   for (genvar j = 0; j < NR_IDCs; j++) begin
-      assign o_Xeip_targets[i + (j*NR_IDCs)] = Xeip_targets[i][j];      
+for (genvar i = 0; i < NR_IDCs; i++) begin
+   for (genvar j = 0; j < NR_DOMAINS; j++) begin
+      assign o_Xeip_targets[i][j] = Xeip_targets[j][i];      
    end
 end
 `endif
