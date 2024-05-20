@@ -3,16 +3,6 @@
 * SPDX-License-Identifier: Apache-2.0 WITH SHL-2.1
 * 
 * Author: F.Marques <fmarques_00@protonmail.com>
-*
-* Description:  This module is responsible for all the
-*               logic used to determine the registers value.
-*
-* NOTE:         This module is part of minimal APLIC. Our minimal APLIC implements only
-*               two domains (M and S). From the AIA specification can be read (section 4.5):
-*               "APLIC implementations can exploit the fact that each source is ultimately active 
-*               in only one domain."
-*               As so, this minimal version implements only one domain and relies on logic to mask 
-*               the interrupt to the correct domain.
 */
 
 module aplic_domain_regctl #(
@@ -20,15 +10,14 @@ module aplic_domain_regctl #(
     parameter int                                                   DOMAIN_M_ADDR       = 32'hc000000,
     parameter int                                                   DOMAIN_S_ADDR       = 32'hd000000,
     parameter int                                                   NR_SRC              = 32,
-    parameter int                                                   NR_IDCs             = 1,
     parameter int                                                   MIN_PRIO            = 6,
     parameter type                                                  reg_req_t           = logic,
     parameter type                                                  reg_rsp_t           = logic,
     // DO NOT EdT BY PARAMETER
     parameter int                                                   IPRIOLEN            = (MIN_PRIO == 1) ? 1 : $clog2(MIN_PRIO),
-    parameter int                                                   NR_BITS_SRC         = 32,//(NR_SRC > 31) ? 32 : NR_SRC,
-    parameter int                                                   NR_SRC_W            = 10,//(NR_SRC == 1) ? 1 : $clog2(NR_SRC),
-    parameter int                                                   NR_REG              = (NR_SRC-1)/32  
+    parameter int                                                   NR_BITS_SRC         = 32,
+    parameter int                                                   NR_SRC_W            = 10,
+    parameter int                                                   NR_REG              = (NR_SRC-1)/NR_BITS_SRC  
 ) (
     input   logic                                                   i_clk               ,
     input   logic                                                   ni_rst              ,
@@ -50,20 +39,10 @@ module aplic_domain_regctl #(
     output  logic [NR_REG:0][NR_BITS_SRC-1:0]                       o_setip             ,
     output  logic [NR_REG:0][NR_BITS_SRC-1:0]                       o_setie             ,
     output  logic [NR_SRC-1:1][31:0]                                o_target            ,
-`ifdef DIRECT_MODE
-    /**  interface for direct mode */
-    output  logic [NR_DOMAINS-1:0][NR_IDCs-1:0][0:0]                o_idelivery         ,
-    output  logic [NR_DOMAINS-1:0][NR_IDCs-1:0][0:0]                o_iforce            ,
-    output  logic [NR_DOMAINS-1:0][NR_IDCs-1:0][IPRIOLEN-1:0]       o_ithreshold        ,
-    input   logic [NR_DOMAINS-1:0][NR_IDCs-1:0][25:0]               i_topi              ,
-    input   logic [NR_DOMAINS-1:0][NR_IDCs-1:0]                     i_topi_update
-`else
-    /**  interface for msi mode */
     output  logic [NR_DOMAINS-1:0][31:0]                            o_genmsi            ,
     input   logic [NR_DOMAINS-1:0]                                  i_genmsi_sent       ,
     input   logic                                                   i_forwarded_valid   ,
     input   logic [10:0]                                            i_intp_forwd_id     
-`endif
 );
 
 // ==================== LOCAL PARAMETERS ===================
@@ -78,7 +57,7 @@ module aplic_domain_regctl #(
   localparam INTP_NOT_ACTIVE          = 1'b0;
 
   localparam LEVELXDM1_C              = 3'h4;
-  
+
   /** setie/setip control unit macros */
   localparam DEFAULT                  = 0;
   localparam CLRIX                    = 3'h1;
@@ -91,11 +70,10 @@ module aplic_domain_regctl #(
   localparam W_FORCE                  = 2'h2;
 // =========================================================
 
-logic [NR_REG:0][NR_BITS_SRC-1:0]                   active;
-logic [NR_SRC-1:1]/**[NR_DOMAIN_W:0]*/              intp_domain_d, intp_domain_q;
-logic [NR_SRC-1:1]                                  change_of_domain_detected;
-logic [2:0]                                         setie_select_i, setip_select_i;
-logic [NR_DOMAINS-1:0][NR_IDCs:0][1:0]              iforce_ctl;
+  logic [NR_REG:0][NR_BITS_SRC-1:0]                 active;
+  logic [NR_SRC-1:1]                                intp_domain_d, intp_domain_q;
+  logic [NR_SRC-1:1]                                change_of_domain_detected;
+  logic [2:0]                                       setie_select_i, setip_select_i;
 
 // =============== Register Map instantiation ==============
   // Register domaincfg
@@ -169,34 +147,14 @@ logic [NR_DOMAINS-1:0][NR_IDCs:0][1:0]              iforce_ctl;
   logic                                             clrienum_final_we;
   // Register target
   logic [NR_SRC-1:1][31:0]                          target_q, target_d;
+  /* verilator lint_off WIDTHCONCAT */
   logic [NR_DOMAINS-1:0][NR_SRC-1:1][31:0]          target_full;
   logic [NR_DOMAINS-1:0][NR_SRC-1:1][31:0]          target_o;
   logic [NR_DOMAINS-1:0][NR_SRC-1:1]                target_we;
-
-`ifdef DIRECT_MODE
-  // Register idelivery
-  logic [NR_DOMAINS-1:0][NR_IDCs-1:0][0:0]          idelivery_q, idelivery_d;
-  logic [NR_DOMAINS-1:0][NR_IDCs-1:0][0:0]          idelivery_o;
-  logic [NR_DOMAINS-1:0][NR_IDCs-1:0]               idelivery_we;
-  // Register iforce
-  logic [NR_DOMAINS-1:0][NR_IDCs-1:0][0:0]          iforce_q, iforce_d;
-  logic [NR_DOMAINS-1:0][NR_IDCs-1:0][0:0]          iforce_o;
-  logic [NR_DOMAINS-1:0][NR_IDCs-1:0]               iforce_we;
-  // Register ithreshold
-  logic [NR_DOMAINS-1:0][NR_IDCs-1:0][IPRIOLEN-1:0] ithreshold_q, ithreshold_d;
-  logic [NR_DOMAINS-1:0][NR_IDCs-1:0][IPRIOLEN-1:0] ithreshold_o;
-  logic [NR_DOMAINS-1:0][NR_IDCs-1:0]               ithreshold_we;
-  // Register topi
-  logic [NR_DOMAINS-1:0][NR_IDCs-1:0][25:0]         topi_q, topi_d;
-  // Register claimi
-  logic [NR_DOMAINS-1:0][NR_IDCs-1:0]               claimi_re, claimi_re_q;
-`endif
-`ifdef MSI_MODE
   // Register genmsi
   logic [NR_DOMAINS-1:0][31:0]                      genmsi_q, genmsi_d;
   logic [NR_DOMAINS-1:0][31:0]                      genmsi_o;
   logic [NR_DOMAINS-1:0]                            genmsi_we;
-`endif
 
   aplic_regmap_minimal #(
     .DOMAIN_M_ADDR          ( DOMAIN_M_ADDR     ),
@@ -204,7 +162,6 @@ logic [NR_DOMAINS-1:0][NR_IDCs:0][1:0]              iforce_ctl;
     .NR_SRC                 ( NR_SRC            ),
     .MIN_PRIO               ( MIN_PRIO          ),
     .IPRIOLEN               ( IPRIOLEN          ),
-    .NR_IDCs                ( NR_IDCs           ),
     .reg_req_t              ( reg_req_t         ),
     .reg_rsp_t              ( reg_rsp_t         )
   ) i_aplic_regmap_minimal (
@@ -293,40 +250,12 @@ logic [NR_DOMAINS-1:0][NR_IDCs:0][1:0]              iforce_ctl;
     .o_target               ( target_o          ),
     .o_target_we            ( target_we         ),
     .o_target_re            (),
-`ifdef DIRECT_MODE
-    // Register: idelivery
-    .i_idelivery            ( idelivery_q       ),
-    .o_idelivery            ( idelivery_o       ),
-    .o_idelivery_we         ( idelivery_we      ),
-    .o_idelivery_re         (),
-    // Register: iforce
-    .i_iforce               ( iforce_q          ),
-    .o_iforce               ( iforce_o          ),
-    .o_iforce_we            ( iforce_we         ),
-    .o_iforce_re            (),
-    // Register: ithreshold
-    .i_ithreshold           ( ithreshold_q      ),
-    .o_ithreshold           ( ithreshold_o      ),
-    .o_ithreshold_we        ( ithreshold_we     ),
-    .o_ithreshold_re        (),
-    // Register: topi
-    .i_topi                 ( topi_q            ),
-    .o_topi_re              (),
-    // Register: claimi
-    .i_claimi               ( topi_q            ),
-    .o_claimi_re            ( claimi_re         ),
-    // Register: genmsi
-    .i_genmsi               (),
-    .o_genmsi               (),
-    .o_genmsi_we            (),
-    .o_genmsi_re            (),
-`else
     // Register: genmsi
     .i_genmsi               ( genmsi_q          ),
     .o_genmsi               ( genmsi_o          ),
     .o_genmsi_we            ( genmsi_we         ),
     .o_genmsi_re            (),
-`endif
+    // AXI port
     .i_req                  ( i_req_cfg         ),
     .o_resp                 ( o_resp_cfg        )
   ); // End of Regmap instance
@@ -411,7 +340,7 @@ logic [NR_DOMAINS-1:0][NR_IDCs:0][1:0]              iforce_ctl;
                 an update was requested, update setipnum_d */
             if ((intp_domain_q[setipnum_o[i]] == i[0]) && setipnum_we[i]) begin
                 if (i_intp_pen_src[setipnum_o[i]] == LEVELXDM1_C) begin
-                    if (i_rectified_src[setipnum_o[i]]) begin
+                    if (i_rectified_src[i]) begin
                         setipnum_d          = setipnum_o[i];
                         setipnum_final_we   = setipnum_we[i];
                     end
@@ -615,62 +544,13 @@ logic [NR_DOMAINS-1:0][NR_IDCs:0][1:0]              iforce_ctl;
 // ===================== CLAIMED FORWARDED ========================
   always_comb begin
     o_claimed_or_forwarded = '0;
-    `ifdef DIRECT_MODE
-        for (int i = 0; i < NR_DOMAINS; i++) begin
-           for (int j = 0; j < NR_IDCs; j++) begin
-                if ((claimi_re[i][j] == 1'b1) && (claimi_re_q[i][j] == 1'b0)) begin
-                    o_claimed_or_forwarded[topi_q[i][j][16 +: NR_SRC_W]/32][topi_q[i][j][16 +: NR_SRC_W]%32] = 1'b1;
-                end 
-            end 
-        end
-    `elsif MSI_MODE
-        if (i_forwarded_valid) begin
-            o_claimed_or_forwarded[i_intp_forwd_id/32][i_intp_forwd_id%32] = 1'b1;
-        end
-    `endif
+    if (i_forwarded_valid) begin
+        o_claimed_or_forwarded[i_intp_forwd_id/32][i_intp_forwd_id%32] = 1'b1;
+    end
   end
 // ================================================================
 
-// ============================ IDC ===============================
-    `ifdef DIRECT_MODE
-    always_comb begin : iforce_control_unit
-        for (int i = 0; i < NR_DOMAINS; i++) begin
-            for (int j = 0; j < NR_IDCs; j++) begin
-                if (iforce_we[i][j]) begin
-                    iforce_ctl[i][j] = W_FORCE;
-                end else if (claimi_re[i][j] && (topi_q[i][j] == 0)) begin
-                    iforce_ctl[i][j] = ZERO_FORCE;
-                end else begin
-                    iforce_ctl[i][j] = DEFAULT;
-                end
-            end
-        end
-    end
-
-    always_comb begin : idc_logic
-        for (int i = 0; i < NR_DOMAINS; i++) begin
-            for (int j = 0; j < NR_IDCs; j++) begin
-                idelivery_d[i][j]       = (idelivery_we[i][j]) ? idelivery_o[i][j] : idelivery_q[i][j];
-                ithreshold_d[i][j]      = (ithreshold_we[i][j]) ? ithreshold_o[i][j] : ithreshold_q[i][j];
-                topi_d[i][j]            = ((i_topi_update[i][j]) || 
-                                          ((i_topi[i][j] == 0) && claimi_re[i][j])) ? i_topi[i][j] : topi_q[i][j];
-                case (iforce_ctl[i][j])
-                    ZERO_FORCE: iforce_d[i][j]  = '0;
-                    W_FORCE:    iforce_d[i][j]  = iforce_o[i][j]; 
-                    default:    iforce_d[i][j]  = iforce_q[i][j];
-                endcase
-            end
-        end
-    end
-
-    assign o_idelivery    = idelivery_q;
-    assign o_ithreshold   = ithreshold_q;
-    assign o_iforce       = iforce_q;
-    `endif
-// ================================================================
-
 // ========================== GENMSI ==============================
-  `ifdef MSI_MODE
   always_comb begin
     genmsi_d = genmsi_q;
 
@@ -686,18 +566,13 @@ logic [NR_DOMAINS-1:0][NR_IDCs:0][1:0]              iforce_ctl;
   end
 
   assign o_genmsi = genmsi_q;
-  `endif
 // ================================================================
 
 /**=================== Registers sequential logic ===============*/
   always_ff @( posedge i_clk or negedge ni_rst ) begin
     if (!ni_rst) begin
         for (int i = 0; i < NR_DOMAINS; i++) begin
-        `ifdef MSI_MODE
             domaincfg_q[i]     <= 32'h80000010;
-        `else
-            domaincfg_q[i]     <= 32'h80000000;
-        `endif
         end
         intp_domain_q       <= '0;
         sourcecfg_q         <= '0;
@@ -710,15 +585,7 @@ logic [NR_DOMAINS-1:0][NR_IDCs:0][1:0]              iforce_ctl;
         clrie_q             <= '0;
         setie_q             <= '0;
         target_q            <= '0;
-        `ifdef DIRECT_MODE
-        idelivery_q         <= '0;
-        ithreshold_q        <= '0;
-        topi_q              <= '0;
-        iforce_q            <= '0;
-        claimi_re_q         <= '0;
-        `else
         genmsi_q            <= '0;
-        `endif
     end else begin
         domaincfg_q         <= domaincfg_d;
         intp_domain_q       <= intp_domain_d;
@@ -732,15 +599,7 @@ logic [NR_DOMAINS-1:0][NR_IDCs:0][1:0]              iforce_ctl;
         clrie_q             <= clrie_d;
         setie_q             <= setie_d;
         target_q            <= target_d;
-        `ifdef DIRECT_MODE
-        idelivery_q         <= idelivery_d;
-        ithreshold_q        <= ithreshold_d;
-        topi_q              <= topi_d;
-        iforce_q            <= iforce_d;
-        claimi_re_q         <= claimi_re;
-        `else
         genmsi_q            <= genmsi_d;
-        `endif
     end
   end
 // ================================================================
