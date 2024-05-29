@@ -8,9 +8,11 @@
 module aplic_domain_notifier 
 import aplic_pkg::*;
 import imsic_pkg::*;
+import imsic_protocol_pkg::*;
 #(
     parameter aplic_cfg_t          AplicCfg                = DefaultAplicCfg,
     parameter imsic_cfg_t          ImsicCfg                = DefaultImsicCfg,
+    parameter protocol_cfg_t       ProtocolCfg             = DefaultImsicProtocolCfg,
     parameter type                 axi_req_t               = ariane_axi::req_t ,
     parameter type                 axi_resp_t              = ariane_axi::resp_t,
     // DO NOT EDIT BY PARAMETER
@@ -33,10 +35,13 @@ import imsic_pkg::*;
     /** IMSIC island CSR interface */
     input  csr_channel_to_imsic_t [ImsicCfg.NrHarts-1:0]       i_imsic_csr, 
     output csr_channel_from_imsic_t [ImsicCfg.NrHarts-1:0]     o_imsic_csr,
-    `endif
     /** IMSIC island AXI interface*/
     input   axi_req_t                                          i_imsic_req,
     output  axi_resp_t                                         o_imsic_resp
+    `elsif AIA_DISTRIBUTED
+    output  axi_req_t                                          o_msi_req,
+    input   axi_resp_t                                         i_msi_rsp
+    `endif
     `elsif DIRECT_MODE
     // should this be a struct?
     input  idelivery_t  [AplicCfg.NrHarts-1:0]   i_idelivery   [AplicCfg.NrDomains-1:0],
@@ -95,6 +100,108 @@ import imsic_pkg::*;
                 .csr_channel_o          ( o_imsic_csr           ),
                 .aplic_imsic_channel_i  ( aplic_imsic_channel   )  
             );
+        `elsif AIA_DISTRIBUTED
+            // signals from AXI 4 Lite
+            logic [ProtocolCfg.AXI_ADDR_WIDTH-1:0] addr_d, addr_q;
+            logic [ProtocolCfg.AXI_DATA_WIDTH-1:0] data_d, data_q;
+
+            logic                      axi_busy, axi_busy_q;
+            eiid_t                     intp_forwd_id_d, intp_forwd_id_q;
+            logic                      ready_i;
+            logic                      forwarded_valid;
+            logic genmsi_sent [AplicCfg.NrDomains-1:0];
+            logic [ProtocolCfg.AXI_ADDR_WIDTH-1:0] base_addr_target;
+            logic [ProtocolCfg.AXI_ADDR_WIDTH-1:0] hart_addr_offset;
+
+            always_comb begin : find_pen_en_intp
+                ready_i             = '0;
+                intp_forwd_id_d     = intp_forwd_id_q;
+                forwarded_valid     = '0;
+                for (int i = 0; i < AplicCfg.NrDomains; i++) begin
+                    genmsi_sent[i]  = '0;
+                end
+                data_d              = data_q;
+                addr_d              = addr_q;
+                base_addr_target    = '0;
+                hart_addr_offset    = '0;
+
+                for (int i = 1 ; i < AplicCfg.NrSources ; i++) begin
+                    /** If the interrupt is pending and enabled in its domain*/
+                    if (i_setip_q[i/32][i%32] && i_setie_q[i/32][i%32] && i_domaincfgIE[i_intp_domain[i]] && !axi_busy_q) begin
+                        /** Save the APLIC interrupt ID, so we can clear it in register controller*/
+                        intp_forwd_id_d = eiid_t'(i);
+                        /** Get the IMSIC interrut ID of the APLIC interrupt ID we want to send to IMSIC*/
+                        data_d          = ProtocolCfg.AXI_DATA_WIDTH'(i_target_q[i].dmdf.mf.eiid);
+
+                        /** Compute the destiny address */
+                        /** We will support the msi address computation suggested in the specification soon */
+                        base_addr_target = (AplicCfg.DomainsCfg[i_intp_domain[i]].LevelMode == DOMAIN_IN_M_MODE) ? 
+                                            ProtocolCfg.AXI_ADDR_WIDTH'(ImsicCfg.InptFilesMAddr) : 
+                                            ProtocolCfg.AXI_ADDR_WIDTH'(ImsicCfg.InptFilesSAddr);
+                        hart_addr_offset = (AplicCfg.DomainsCfg[i_intp_domain[i]].LevelMode == DOMAIN_IN_M_MODE) ?
+                                            ProtocolCfg.AXI_ADDR_WIDTH'(i_target_q[i].hi) :
+                                            (ProtocolCfg.AXI_ADDR_WIDTH'(i_target_q[i].hi) * 
+                                            (ProtocolCfg.AXI_ADDR_WIDTH'(ImsicCfg.NrVSInptFiles) + 'h1)) + 
+                                            ProtocolCfg.AXI_ADDR_WIDTH'(i_target_q[i].dmdf.mf.gi);
+                        
+                        addr_d          = base_addr_target + (hart_addr_offset << 12); 
+                        ready_i         = 1'b1;
+                        forwarded_valid = 1'b1;
+                    end
+                end
+
+                // /** Lastly, check if genmsi wants to send a MSI*/
+                    // for (int i = 0; i < AplicCfg.NrDomains; i++) begin
+                    //     if (i_genmsi[i].busy && !axi_busy_q) begin
+                    //         intp_forwd_id_d = '0;
+                    //         data_d          = ProtocolCfg.AXI_DATA_WIDTH'(i_genmsi[i].eiid);
+                    //         base_addr_target= (!i_intp_domain[i]) ? IMSIC_M_ADDR_TARGET : 
+                    //         IMSIC_S_ADDR_TARGET  + ({{AXI_ADDR_WIDTH-32{1'b0}}, i_target_q[data_d[31:0]]} & TARGET_GUEST_IDX_MASK);
+                    //         hart_addr_offset= (!i_intp_domain[i]) ? {{AXI_ADDR_WIDTH-14{1'b0}}, i_target_q[data_d[31:0]][31:18]} * 'h1000 : 
+                    //                         {{AXI_ADDR_WIDTH-14{1'b0}}, i_target_q[data_d[31:0]][31:18]} * 'h1000 * (NR_VS_FILES_PER_IMSIC + 'h1);
+                    //         addr_d          = base_addr_target + hart_addr_offset; 
+                    //         genmsi_sent[i]  = 1'b1;
+                    //         ready_i         = 1'b1;
+                    //     end
+                    // end
+            end
+
+            assign o_genmsi_sent        = genmsi_sent;
+            assign o_forwarded_valid    = forwarded_valid;
+            assign o_intp_forwd_id      = intp_forwd_id_q;
+
+            // -----------------------------
+            // AXI Interface
+            // -----------------------------
+            axi_lite_write_master#(
+                .AXI_ADDR_WIDTH ( ProtocolCfg.AXI_ADDR_WIDTH    ),
+                .AXI_DATA_WIDTH ( ProtocolCfg.AXI_DATA_WIDTH    ),
+                .axi_req_t      ( axi_req_t                     ),
+                .axi_resp_t     ( axi_resp_t                    )
+            ) axi_lite_write_master_i (
+                .clk_i          ( i_clk                         ),
+                .rst_ni         ( ni_rst                        ),
+                .ready_i        ( ready_i                       ),
+                .addr_i         ( addr_d                        ),
+                .data_i         ( data_d                        ),
+                .busy_o         ( axi_busy                      ),
+                .req_o          ( o_msi_req                     ),
+                .resp_i         ( i_msi_rsp                     )
+            );
+
+            always_ff @( posedge i_clk, negedge ni_rst ) begin
+                if (!ni_rst) begin
+                    axi_busy_q      <= '0;
+                    intp_forwd_id_q <= '0;
+                    data_q          <= '0;
+                    addr_q          <= '0;
+                end else begin
+                    axi_busy_q      <= axi_busy;
+                    intp_forwd_id_q <= intp_forwd_id_d;
+                    data_q          <= data_d;
+                    addr_q          <= addr_d;
+                end
+            end
         `endif
     `elsif DIRECT_MODE
         logic  [AplicCfg.NrHarts-1:0] has_valid_intp   [AplicCfg.NrDomains-1:0];

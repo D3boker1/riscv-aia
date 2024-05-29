@@ -76,8 +76,28 @@ import aplic_pkg::*;
     end
 
     /** IMSIC island MSI channel */
-    ariane_axi::req_t                           req_msi;
-    ariane_axi::resp_t                          resp_msi;
+    ariane_axi::req_t                           req_msi_plat, req_msi_aplic, req_msi;
+    ariane_axi::resp_t                          resp_msi_plat, resp_msi_aplic, resp_msi;
+    `ifdef AIA_DISTRIBUTED
+    assign req_msi = req_msi_aplic;
+    assign resp_msi_aplic = resp_msi;
+
+    imsic_island_top #(
+        .ImsicCfg               ( ImsicCfg              ),
+        .axi_req_t              ( ariane_axi::req_t     ),
+        .axi_resp_t             ( ariane_axi::resp_t    )
+    ) i_imsic_top (
+        .i_clk                  ( i_clk                 ),
+        .ni_rst                 ( ni_rst                ),
+        .i_req                  ( req_msi               ),
+        .o_resp                 ( resp_msi              ),
+        .csr_channel_i          ( in_imsic_csr          ),
+        .csr_channel_o          ( out_imsic_csr         )
+    );
+    `elsif AIA_EMBEDDED
+    assign req_msi = req_msi_plat;
+    assign resp_msi_plat = resp_msi;
+    `endif
 
     axi_lite_write_master#(
         .AXI_ADDR_WIDTH     ( ProtocolCfg.AXI_ADDR_WIDTH    ),
@@ -86,11 +106,17 @@ import aplic_pkg::*;
         .clk_i              ( i_clk             ),
         .rst_ni             ( ni_rst            ),
         .ready_i            ( i_ready           ),
-        .busy_o             (                   ),
         .addr_i             ( i_addr            ),
         .data_i             ( i_data            ),
-        .req_o              ( req_msi           ),
-        .resp_i             ( resp_msi          )
+        `ifdef AIA_DISTRIBUTED
+        .busy_o             ( ),
+        .req_o              ( ),
+        .resp_i             ( )
+        `elsif AIA_EMBEDDED
+        .busy_o             ( ),
+        .req_o              ( req_msi_plat      ),
+        .resp_i             ( resp_msi_plat     )
+        `endif
     );
     `endif
 
@@ -111,9 +137,12 @@ import aplic_pkg::*;
         `ifdef AIA_EMBEDDED
         .i_imsic_csr    ( in_imsic_csr                      ),
         .o_imsic_csr    ( out_imsic_csr                     ),         
-        `endif
         .i_imsic_req    ( req_msi                           ),
         .o_imsic_resp   ( resp_msi                          )
+        `elsif AIA_DISTRIBUTED
+        .o_msi_req      ( req_msi_aplic                     ),
+        .i_msi_rsp      ( resp_msi_aplic                    )
+        `endif
         `elsif DIRECT_MODE
         .o_eintp_cpu    ( o_eintp_cpu                       )
         `endif

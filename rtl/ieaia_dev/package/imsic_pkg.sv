@@ -10,9 +10,12 @@ import aia_pkg::*;
     localparam VS_FILE    = 2;
 
     localparam UserNrSourcesImsicW  = (UserNrSourcesImsic == 1) ? 1 : $clog2(UserNrSourcesImsic);
+    localparam UserNrHartsImsicW  = (UserNrHartsImsic == 1) ? 1 : $clog2(UserNrHartsImsic);
     localparam UserNrVSInptFilesW   = $clog2(UserNrVSIntpFiles);
     localparam UserNrInptFiles      = UserNrVSIntpFiles+2;
     localparam UserNrInptFilesW     = $clog2(UserNrInptFiles);
+    localparam UserNrSFileGroup     = (UserNrHartsImsic * (UserNrVSIntpFiles+1)) - 1;
+    localparam UserNrSFileGroupW    = $clog2(UserNrSFileGroup);
 
     localparam NR_REG = (UserNrSourcesImsic < 32) ? 1 : UserNrSourcesImsic/32;
 
@@ -70,6 +73,7 @@ import aia_pkg::*;
     typedef struct packed {
         int          XLEN;
         int          NrHarts;
+        shortint     NrHartsW;
         int          NrSources;
         shortint     NrSourcesW;
         int          NrVSInptFiles;
@@ -87,6 +91,7 @@ import aia_pkg::*;
         localparam imsic_cfg_t DefaultImsicCfg = '{
             XLEN:           int'(UserXLEN),
             NrHarts:        int'(UserNrHartsImsic),
+            NrHartsW:       shortint'(UserNrHartsImsicW),
             NrSources:      int'(UserNrSourcesImsic),
             NrSourcesW:     shortint'(UserNrSourcesImsicW),
             NrVSInptFiles:  int'(UserNrVSIntpFiles),

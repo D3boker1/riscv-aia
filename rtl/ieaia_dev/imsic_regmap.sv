@@ -70,17 +70,14 @@ import imsic_pkg::*;
         if (en && we) begin
             unique case (register_address) inside
                 [ImsicCfg.InptFilesMAddr : ImsicCfg.InptFilesMAddr + ((ImsicCfg.NrHarts-1)*'h1000)]: begin
-                    // 13:12 because for now we support a max of 4 IMSICs
-                    o_setipnum[register_address[13:12]][0][ImsicCfg.NrSourcesW-1:0] = wdata[ImsicCfg.NrSourcesW-1:0];
-                    o_setipnum_we[register_address[13:12]][0] = 1'b1;
+                    o_setipnum[register_address[12 +: ImsicCfg.NrHartsW]][0][ImsicCfg.NrSourcesW-1:0] = wdata[ImsicCfg.NrSourcesW-1:0];
+                    o_setipnum_we[register_address[12 +: ImsicCfg.NrHartsW]][0] = 1'b1;
                 end
 
                 [ImsicCfg.InptFilesSAddr : (ImsicCfg.InptFilesSAddr + 
                             ((ImsicCfg.NrHarts*(ImsicCfg.NrInptFiles-1))*'h1000) - 4)]: begin
-                    // 14:12 because for now we support a max of 4 IMSICs w/ 
-                    // 1 VS-file -> (4-1)*2(S+VS) = 7 -> 111
-                    imsic_index = {{32-3{1'b0}}, register_address[14:12]}/(ImsicCfg.NrInptFiles-1); 
-                    file_index = ({{32-3{1'b0}}, register_address[14:12]}%(ImsicCfg.NrInptFiles-1))+1; 
+                    imsic_index = 32'(register_address[12 +: UserNrSFileGroup])/(ImsicCfg.NrInptFiles-1); 
+                    file_index = (32'(register_address[12 +: UserNrSFileGroup])%(ImsicCfg.NrInptFiles-1))+1; 
 
                     o_setipnum[imsic_index][file_index][ImsicCfg.NrSourcesW-1:0] = wdata[ImsicCfg.NrSourcesW-1:0];
                     o_setipnum_we[imsic_index][file_index] = 1'b1;

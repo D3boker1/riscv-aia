@@ -27,10 +27,13 @@ import imsic_pkg::*;
    /** IMSIC island CSR interface */
    input  csr_channel_to_imsic_t     [ImsicCfg.NrHarts-1:0]          i_imsic_csr, 
    output csr_channel_from_imsic_t   [ImsicCfg.NrHarts-1:0]          o_imsic_csr,
-   `endif
    /** IMSIC island AXI interface*/
    input   axi_req_t                                                 i_imsic_req       ,
    output  axi_resp_t                                                o_imsic_resp
+   `elsif AIA_DISTRIBUTED
+   output  axi_req_t                                                 o_msi_req,
+   input   axi_resp_t                                                i_msi_rsp
+   `endif
    `elsif DIRECT_MODE
    output logic        [AplicCfg.NrHarts-1:0]   o_eintp_cpu   [AplicCfg.NrDomains-1:0]
    `endif
@@ -68,9 +71,12 @@ import imsic_pkg::*;
       `ifdef AIA_EMBEDDED
       .i_imsic_csr      ( i_imsic_csr        ),
       .o_imsic_csr      ( o_imsic_csr        ),   
-      `endif
       .i_imsic_req      ( i_imsic_req        ),
       .o_imsic_resp     ( o_imsic_resp       )    
+      `elsif AIA_DISTRIBUTED
+      .o_msi_req        ( o_msi_req          ),
+      .i_msi_rsp        ( i_msi_rsp          )
+      `endif
       `elsif DIRECT_MODE
       .o_eintp_cpu      ( o_eintp_cpu        )
       `endif

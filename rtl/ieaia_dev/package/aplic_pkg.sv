@@ -251,6 +251,7 @@ import aia_pkg::*;
     localparam TARGET_GI_LEN = 6;
     localparam TARGET_EIID_OFF = 0;
     localparam TARGET_EIID_LEN = 11;
+    localparam TARGET_GUEST_IDX_MASK = 32'h3F000;
 
 /********************************************************************
 *                             idc                                   *

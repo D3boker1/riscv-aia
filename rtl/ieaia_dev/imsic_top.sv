@@ -26,9 +26,11 @@ import imsic_pkg::*;
    output axi_resp_t                                            o_resp,
    /** CSR interface*/
    input  csr_channel_to_imsic_t     [ImsicCfg.NrHarts-1:0]     csr_channel_i, 
-   output csr_channel_from_imsic_t   [ImsicCfg.NrHarts-1:0]     csr_channel_o, 
+   output csr_channel_from_imsic_t   [ImsicCfg.NrHarts-1:0]     csr_channel_o 
+   `ifdef AIA_EMBEDDED
    /** APLIC interface */
-   input aplic_imsic_channel_t                                  aplic_imsic_channel_i 
+   ,input aplic_imsic_channel_t                                 aplic_imsic_channel_i 
+   `endif
 );
 
     logic [ImsicCfg.NrHarts-1:0][ImsicCfg.NrInptFilesW-1:0] select_intp_file_i;
@@ -155,6 +157,7 @@ import imsic_pkg::*;
                 end 
             end
 
+            `ifdef AIA_EMBEDDED
             /** APLIC channel handler */
             if (aplic_imsic_channel_i.imsic_en[i] == 1'b1) begin
                 target_register[i] = {{32-NR_SRC_LEN{1'b0}}, aplic_imsic_channel_i.setipnum}/32;
@@ -162,6 +165,7 @@ import imsic_pkg::*;
                 eip_d[i][target_register[i]+(aplic_imsic_channel_i.select_file*NR_REG)]
                         [target_intp[i]] = 1'b1;
             end
+            `endif
 
             /** If a core is claiming the intp, unpend it */
             if (csr_channel_i[i].imsic_claim) begin
