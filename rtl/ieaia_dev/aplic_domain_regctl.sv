@@ -263,7 +263,7 @@ import aplic_pkg::*;
     function /* automatic */ bit source_is_active(input logic [AplicCfg.NrSourcesW-1:0] source_idx);
         if (!((sourcecfg_q[source_idx].d == SOURCE_DELEGATED) || 
             ((sourcecfg_q[source_idx].d == SOURCE_NOT_DELEGATED) && 
-            (sourcecfg_q[source_idx].ddf.sm == APLIC_SM_INACTIVE)))) begin
+            (sourcecfg_q[source_idx].ddf.nd.sm == APLIC_SM_INACTIVE)))) begin
                 source_is_active = 1;
             end else begin
                 source_is_active = 0;
@@ -453,7 +453,7 @@ import aplic_pkg::*;
             target_d[j].hi = target_o[j].hi;
             // We dont support both delivery modes simultaneously in hardware
             if (AplicCfg.DeliveryMode == DOMAIN_IN_DIRECT_MODE) begin
-                target_d[j].dmdf.iprio = (target_o[j].dmdf.iprio == 0) ? TARGERT_DEF_IPRIO : target_o[j].dmdf.iprio;
+                target_d[j].dmdf.df.iprio = (target_o[j].dmdf.df.iprio == 0) ? TARGERT_DEF_IPRIO : target_o[j].dmdf.df.iprio;
             end else if (AplicCfg.DeliveryMode == DOMAIN_IN_MSI_MODE) begin
                 target_d[j].dmdf.mf   = target_o[j].dmdf.mf;
             end

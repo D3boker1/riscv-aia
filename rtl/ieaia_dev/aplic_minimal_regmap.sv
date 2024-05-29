@@ -272,7 +272,7 @@ always_comb begin
               o_sourcecfg[target_source].ddf.ci = i_req.wdata[9:0];
             end else begin
               if (is_valid_aplic_sourcecfg_sm(i_req.wdata[2:0])) begin
-                o_sourcecfg[target_source].ddf.sm = sourcecfg_sm_t'(i_req.wdata[2:0]);
+                o_sourcecfg[target_source].ddf.nd.sm = sourcecfg_sm_t'(i_req.wdata[2:0]);
               end
             end
           end
@@ -350,7 +350,7 @@ always_comb begin
             o_target[target_source].hi     = i_req.wdata[TARGET_HI_OFF +: TARGET_HI_LEN];
 
             if (AplicCfg.DeliveryMode == DOMAIN_IN_DIRECT_MODE) begin
-              o_target[target_source].dmdf.iprio = i_req.wdata[TARGET_IPRIO_OFF +: TARGET_IPRIO_LEN];
+              o_target[target_source].dmdf.df.iprio = i_req.wdata[TARGET_IPRIO_OFF +: TARGET_IPRIO_LEN];
             end else if (AplicCfg.DeliveryMode == DOMAIN_IN_MSI_MODE) begin
               o_target[target_source].dmdf.mf.gi = i_req.wdata[TARGET_GI_OFF +: TARGET_GI_LEN];
               o_target[target_source].dmdf.mf.eiid = i_req.wdata[TARGET_EIID_OFF +: TARGET_EIID_LEN];
@@ -400,7 +400,7 @@ always_comb begin
         ['h4: 'h4 + ('h4 * (AplicCfg.NrSources-1))]: begin
           if (check_source_domain(target_source, target_domain)) begin
             o_resp.rdata[10]  = i_sourcecfg[target_source].d;
-            o_resp.rdata[2:0] = i_sourcecfg[target_source].ddf.sm;
+            o_resp.rdata[2:0] = i_sourcecfg[target_source].ddf.nd.sm;
           end else begin
             if (domain_is_parent(target_domain, intp_domain_i[target_source])) begin
               o_resp.rdata[10] = 'h1;
@@ -464,7 +464,7 @@ always_comb begin
           if (check_source_domain(target_source, target_domain)) begin
             o_resp.rdata[TARGET_HI_OFF +: TARGET_HI_LEN] = i_target[target_source].hi;
             if (AplicCfg.DeliveryMode == DOMAIN_IN_DIRECT_MODE) begin
-              o_resp.rdata[TARGET_IPRIO_OFF +: TARGET_IPRIO_LEN] = i_target[target_source].dmdf.iprio;
+              o_resp.rdata[TARGET_IPRIO_OFF +: TARGET_IPRIO_LEN] = i_target[target_source].dmdf.df.iprio;
             end else if (AplicCfg.DeliveryMode == DOMAIN_IN_MSI_MODE) begin
               o_resp.rdata[TARGET_GI_OFF +: TARGET_GI_LEN] = i_target[target_source].dmdf.mf.gi;
               o_resp.rdata[TARGET_EIID_OFF +: TARGET_EIID_LEN] = i_target[target_source].dmdf.mf.eiid;

@@ -134,8 +134,11 @@ import aia_pkg::*;
         logic d;                // delegate
         union packed{
             logic [9:0] ci;     // child index
-            sourcecfg_sm_t sm;  // source mode
-        }ddf;
+            struct packed {
+                logic [6:0] reserved; // reserved field to make fields of the same size
+                sourcecfg_sm_t sm;  // source mode
+            }nd; // not delegated field
+        }ddf; // delegate dependent field
     } sourcecfg_t;
 
     localparam SOURCECFG_D_OFF = 10;
@@ -239,7 +242,10 @@ import aia_pkg::*;
         hart_index_t hi;        // hart index
         union packed{
             target_msi_field_t mf; // msi field
-            prio_t iprio;     // interrupt priority // In the future we should change to [UserminPrioW-1:0] 
+            struct packed {
+                logic [8:0] reserved; // reserved field to make fields of the same size
+                prio_t iprio;     // interrupt priority // In the future we should change to [UserminPrioW-1:0] 
+            }df; // direct field
         }dmdf; // delivery mode (domaincfg) dependent field
     } target_t;
 

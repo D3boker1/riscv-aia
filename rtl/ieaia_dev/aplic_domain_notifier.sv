@@ -222,9 +222,9 @@ import imsic_protocol_pkg::*;
                     for (int w = 1; w < AplicCfg.NrSources; w++) begin
                         if (i_setip_q[w/32][w%32] && i_setie_q[w/32][w%32] &&
                             (i_intp_domain[w] == intp_domain_t'(i)) && (i_target_q[w].hi == hart_index_t'(j)) && 
-                            (i_target_q[w].dmdf.iprio < prev_higher_prio[i][j])) begin
+                            (i_target_q[w].dmdf.df.iprio < prev_higher_prio[i][j])) begin
                             intp_id[i][j]          = iid_t'(w);
-                            intp_prio[i][j]        = i_target_q[w].dmdf.iprio;
+                            intp_prio[i][j]        = i_target_q[w].dmdf.df.iprio;
                             prev_higher_prio[i][j] = intp_prio[i][j];
                         end
                     end

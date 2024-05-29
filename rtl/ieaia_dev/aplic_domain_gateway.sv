@@ -57,7 +57,7 @@ import aplic_pkg::*;
             new_intp_src[i]                 = FROM_RECTIFIER;
             intp_pen_src[i]                 = INACTIVE_C;
 
-            case (i_sourcecfg[i].ddf.sm)
+            case (i_sourcecfg[i].ddf.nd.sm)
                 APLIC_SM_INACTIVE: begin
                     intp_pen_src[i]         = INACTIVE_C;
                 end
@@ -94,7 +94,7 @@ import aplic_pkg::*;
     /** Rectify the input*/
     always_comb begin
         for (int i = 1; i < AplicCfg.NrSources; i++) begin
-            if ((i_sourcecfg[i].ddf.sm == APLIC_SM_INACTIVE) || (i_sourcecfg[i].ddf.sm == APLIC_SM_DETACHED)) begin
+            if ((i_sourcecfg[i].ddf.nd.sm == APLIC_SM_INACTIVE) || (i_sourcecfg[i].ddf.nd.sm == APLIC_SM_DETACHED)) begin
                 rectified_src[i] = 0;
             end else begin
                 rectified_src[i] = i_sources[i] ^ i_sourcecfg[i][0];
