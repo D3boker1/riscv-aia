@@ -29,9 +29,11 @@ import imsic_pkg::*;
     output  eiid_t                                             o_intp_forwd_id,
     input   genmsi_t                                           i_genmsi [AplicCfg.NrDomains-1:0],
     output  logic                                              o_genmsi_sent [AplicCfg.NrDomains-1:0],
+    `ifdef AIA_EMBEDDED
     /** IMSIC island CSR interface */
     input  csr_channel_to_imsic_t [ImsicCfg.NrHarts-1:0]       i_imsic_csr, 
     output csr_channel_from_imsic_t [ImsicCfg.NrHarts-1:0]     o_imsic_csr,
+    `endif
     /** IMSIC island AXI interface*/
     input   axi_req_t                                          i_imsic_req,
     output  axi_resp_t                                         o_imsic_resp
@@ -47,51 +49,53 @@ import imsic_pkg::*;
 );
 
     `ifdef MSI_MODE
-        aplic_imsic_channel_t       aplic_imsic_channel;
-        eiid_t                      forwarded_intp_id;
-        logic                       forwarded_valid;
-        logic  genmsi_sent [AplicCfg.NrDomains-1:0];
+        `ifdef AIA_EMBEDDED
+            aplic_imsic_channel_t       aplic_imsic_channel;
+            eiid_t                      forwarded_intp_id;
+            logic                       forwarded_valid;
+            logic  genmsi_sent [AplicCfg.NrDomains-1:0];
 
-        always_comb begin : find_pen_en_intp
-            forwarded_intp_id   = '0;
-            forwarded_valid     = '0;
-            for (int i = 0; i < AplicCfg.NrDomains; i++) begin
-                genmsi_sent[i]  = '0;
-            end
-            aplic_imsic_channel.setipnum      = '0;    
-            aplic_imsic_channel.select_file   = '0;           
-            aplic_imsic_channel.imsic_en            = '0;
+            always_comb begin : find_pen_en_intp
+                forwarded_intp_id   = '0;
+                forwarded_valid     = '0;
+                for (int i = 0; i < AplicCfg.NrDomains; i++) begin
+                    genmsi_sent[i]  = '0;
+                end
+                aplic_imsic_channel.setipnum      = '0;    
+                aplic_imsic_channel.select_file   = '0;           
+                aplic_imsic_channel.imsic_en            = '0;
 
-            for (int i = 1 ; i < AplicCfg.NrSources ; i++) begin
-                if (i_setip_q[i/32][i%32] && i_setie_q[i/32][i%32] && 
-                    i_domaincfgIE[i_intp_domain[i]]) begin
-                    aplic_imsic_channel.setipnum      = i_target_q[i].dmdf.mf.eiid[ImsicCfg.NrSourcesW-1:0];
-                    /** if intp belongs to M domain i_intp_domain = 0, else = 1. + guest index*/
-                    aplic_imsic_channel.select_file   = (i_intp_domain[i] == 0) ? 0 : 1 + i_target_q[i].dmdf.mf.gi[0+:ImsicCfg.NrInptFilesW];
-                    aplic_imsic_channel.imsic_en      = (1'b1 << i_target_q[i].hi[0+:IMSICS_LEN]);
-                    forwarded_intp_id   = i[10:0];
-                    forwarded_valid     = 1'b1;
+                for (int i = 1 ; i < AplicCfg.NrSources ; i++) begin
+                    if (i_setip_q[i/32][i%32] && i_setie_q[i/32][i%32] && 
+                        i_domaincfgIE[i_intp_domain[i]]) begin
+                        aplic_imsic_channel.setipnum      = i_target_q[i].dmdf.mf.eiid[ImsicCfg.NrSourcesW-1:0];
+                        /** if intp belongs to M domain i_intp_domain = 0, else = 1. + guest index*/
+                        aplic_imsic_channel.select_file   = (i_intp_domain[i] == 0) ? 0 : 1 + i_target_q[i].dmdf.mf.gi[0+:ImsicCfg.NrInptFilesW];
+                        aplic_imsic_channel.imsic_en      = (1'b1 << i_target_q[i].hi[0+:IMSICS_LEN]);
+                        forwarded_intp_id   = i[10:0];
+                        forwarded_valid     = 1'b1;
+                    end
                 end
             end
-        end
 
-        assign o_genmsi_sent        = genmsi_sent;
-        assign o_forwarded_valid    = forwarded_valid;
-        assign o_intp_forwd_id      = forwarded_intp_id;
+            assign o_genmsi_sent        = genmsi_sent;
+            assign o_forwarded_valid    = forwarded_valid;
+            assign o_intp_forwd_id      = forwarded_intp_id;
 
-        imsic_island_top #(
-            .ImsicCfg               ( ImsicCfg              ),
-            .axi_req_t              ( axi_req_t             ),
-            .axi_resp_t             ( axi_resp_t            )
-        ) i_imsic_top (
-            .i_clk                  ( i_clk                 ),
-            .ni_rst                 ( ni_rst                ),
-            .i_req                  ( i_imsic_req           ),
-            .o_resp                 ( o_imsic_resp          ),
-            .csr_channel_i          ( i_imsic_csr           ),
-            .csr_channel_o          ( o_imsic_csr           ),
-            .aplic_imsic_channel_i  ( aplic_imsic_channel   )  
-        );
+            imsic_island_top #(
+                .ImsicCfg               ( ImsicCfg              ),
+                .axi_req_t              ( axi_req_t             ),
+                .axi_resp_t             ( axi_resp_t            )
+            ) i_imsic_top (
+                .i_clk                  ( i_clk                 ),
+                .ni_rst                 ( ni_rst                ),
+                .i_req                  ( i_imsic_req           ),
+                .o_resp                 ( o_imsic_resp          ),
+                .csr_channel_i          ( i_imsic_csr           ),
+                .csr_channel_o          ( o_imsic_csr           ),
+                .aplic_imsic_channel_i  ( aplic_imsic_channel   )  
+            );
+        `endif
     `elsif DIRECT_MODE
         logic  [AplicCfg.NrHarts-1:0] has_valid_intp   [AplicCfg.NrDomains-1:0];
         iid_t  [AplicCfg.NrHarts-1:0] intp_id          [AplicCfg.NrDomains-1:0];

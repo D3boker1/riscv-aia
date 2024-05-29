@@ -24,6 +24,7 @@ VERILOG_SOURCES += $(AXI_FOLDER)/axi_pkg.sv
 VERILOG_SOURCES += $(AXI_FOLDER)/ariane_axi_pkg.sv
 
 # AIA packages
+VERILOG_SOURCES += $(IEAIA_FOLDER)/package/aia_define_$(AIA_TYPE).svh
 VERILOG_SOURCES += $(IEAIA_FOLDER)/package/aia_define_$(AIA_MODE).svh
 VERILOG_SOURCES += $(IEAIA_FOLDER)/package/aia_pkg.sv
 VERILOG_SOURCES += $(IEAIA_FOLDER)/package/imsic_pkg.sv

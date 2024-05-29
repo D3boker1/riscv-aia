@@ -23,9 +23,11 @@ import imsic_pkg::*;
    input  reg_req_t                                                  i_req_cfg         ,
    output reg_rsp_t                                                  o_resp_cfg        ,
    `ifdef MSI_MODE
+   `ifdef AIA_EMBEDDED
    /** IMSIC island CSR interface */
    input  csr_channel_to_imsic_t     [ImsicCfg.NrHarts-1:0]          i_imsic_csr, 
    output csr_channel_from_imsic_t   [ImsicCfg.NrHarts-1:0]          o_imsic_csr,
+   `endif
    /** IMSIC island AXI interface*/
    input   axi_req_t                                                 i_imsic_req       ,
    output  axi_resp_t                                                o_imsic_resp
@@ -63,8 +65,10 @@ import imsic_pkg::*;
       .o_resp_cfg       ( o_resp_cfg         ),
       .i_irq_sources    ( sync_irq_src       ),
       `ifdef MSI_MODE
+      `ifdef AIA_EMBEDDED
       .i_imsic_csr      ( i_imsic_csr        ),
       .o_imsic_csr      ( o_imsic_csr        ),   
+      `endif
       .i_imsic_req      ( i_imsic_req        ),
       .o_imsic_resp     ( o_imsic_resp       )    
       `elsif DIRECT_MODE

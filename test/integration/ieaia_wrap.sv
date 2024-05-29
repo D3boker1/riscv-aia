@@ -108,8 +108,10 @@ import aplic_pkg::*;
         .i_req_cfg      ( i_aplic_confg_req                 ),
         .o_resp_cfg     ( o_aplic_confg_resp                ),
         `ifdef MSI_MODE
+        `ifdef AIA_EMBEDDED
         .i_imsic_csr    ( in_imsic_csr                      ),
         .o_imsic_csr    ( out_imsic_csr                     ),         
+        `endif
         .i_imsic_req    ( req_msi                           ),
         .o_imsic_resp   ( resp_msi                          )
         `elsif DIRECT_MODE

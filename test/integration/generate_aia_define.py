@@ -12,7 +12,10 @@ class CAiaDefines:
                  riscv_xlen,
                  imsic_nr_sources,
                  imsic_nr_harts,
-                 imsic_nr_vs_files):
+                 imsic_nr_vs_files,
+                 aia_type,
+                 aia_distributed,
+                 aia_embedded):
         self.domain_direct_value = domain_direct_value
         self.domain_msi_value = domain_msi_value
         self.user_aplic_mode = user_aplic_mode
@@ -24,6 +27,9 @@ class CAiaDefines:
         self.imsic_nr_sources = imsic_nr_sources
         self.imsic_nr_harts = imsic_nr_harts
         self.imsic_nr_vs_files = imsic_nr_vs_files
+        self.aia_type = aia_type
+        self.aia_distributed = aia_distributed
+        self.aia_embedded = aia_embedded
 
 def parse_aplic_mode(file_content):
 
@@ -41,6 +47,10 @@ def parse_aplic_mode(file_content):
     imsic_nr_harts_pattern = re.compile(r'\s*localparam\s+UserNrHartsImsic\s+=\s+(\w+);')
     imsic_nr_vs_files_pattern = re.compile(r'\s*localparam\s+UserNrVSIntpFiles\s+=\s+(\w+);')
 
+    aia_type_pattern = re.compile(r'\s*localparam\s+UserAiaType\s+=\s+(\w+);')
+    aia_distributed_pattern = re.compile(r'\s*localparam\s+AIA_DISTRIBUTED\s+=\s+(\d+);')
+    aia_embedded_pattern = re.compile(r'\s*localparam\s+AIA_EMBEDDED\s+=\s+(\d+);')
+
     # Initialize variables
     domain_direct_value = None
     domain_msi_value = None
@@ -53,6 +63,9 @@ def parse_aplic_mode(file_content):
     imsic_nr_sources = None
     imsic_nr_harts = None
     imsic_nr_vs_files = None
+    aia_type = None
+    aia_distributed = None
+    aia_embedded = None
 
     # Search the file content for the patterns
     for line in file_content:
@@ -100,6 +113,18 @@ def parse_aplic_mode(file_content):
             match = imsic_nr_vs_files_pattern.match(line)
             if match:
                 imsic_nr_vs_files = match.group(1)
+        if aia_type is None:
+            match = aia_type_pattern.match(line)
+            if match:
+                aia_type = match.group(1)
+        if aia_distributed is None:
+            match = aia_distributed_pattern.match(line)
+            if match:
+                aia_distributed = match.group(1)
+        if aia_embedded is None:
+            match = aia_embedded_pattern.match(line)
+            if match:
+                aia_embedded = match.group(1)
 
     return CAiaDefines(domain_direct_value,
                        domain_msi_value,
@@ -111,9 +136,20 @@ def parse_aplic_mode(file_content):
                        riscv_xlen,
                        imsic_nr_sources,
                        imsic_nr_harts,
-                       imsic_nr_vs_files)
+                       imsic_nr_vs_files,
+                       aia_type,
+                       aia_distributed,
+                       aia_embedded)
 
-def determine_irqc_type(user_aplic_mode, domain_direct_value, domain_msi_value):
+def determine_irqc_type (aia_type, aia_distributed, aia_embedded):
+    if aia_type == 'AIA_DISTRIBUTED':
+        return aia_distributed
+    elif aia_type == 'AIA_EMBEDDED':
+        return aia_embedded
+    else:
+        raise ValueError("Unknown UserAiaType value")
+
+def determine_irqc_mode(user_aplic_mode, domain_direct_value, domain_msi_value):
     if user_aplic_mode == 'DOMAIN_IN_DIRECT_MODE':
         return domain_direct_value
     elif user_aplic_mode == 'DOMAIN_IN_MSI_MODE':
@@ -134,17 +170,25 @@ def main():
     # Parse the UserAplicMode and domain values
     aia_variables = parse_aplic_mode(file_content)
 
-    # Determine the IRQC_TYPE based on UserAplicMode
-    irqc_type = determine_irqc_type(aia_variables.user_aplic_mode, aia_variables.domain_direct_value, aia_variables.domain_msi_value)
+    # Determine the IRQC_MODE based on UserAplicMode
+    irqc_mode = determine_irqc_mode(aia_variables.user_aplic_mode, aia_variables.domain_direct_value, aia_variables.domain_msi_value)
+    
+    irqc_type = determine_irqc_type(aia_variables.aia_type, aia_variables.aia_distributed, aia_variables.aia_embedded)
 
     # Write the IRQC_TYPE to aia_define.py
-    write_to_file ('aia_define.py', "AIA_MODE", 'w', irqc_type)
+    write_to_file ('aia_define.py', "AIA_MODE", 'w', irqc_mode)
 
-    if (irqc_type == 0):
-        type = "direct"
-    elif (irqc_type == 1):
-        type = "msi"
-    write_to_file ('aia_define.mk', "AIA_MODE", 'w', type)
+    if (irqc_mode == aia_variables.domain_direct_value):
+        mode = "direct"
+    elif (irqc_mode == aia_variables.domain_msi_value):
+        mode = "msi"
+    write_to_file ('aia_define.mk', "AIA_MODE", 'w', mode)
+    
+    if (irqc_type == aia_variables.aia_distributed):
+        type = "distributed"
+    elif (irqc_type == aia_variables.aia_embedded):
+        type = "embedded"
+    write_to_file ('aia_define.mk', "AIA_TYPE", 'a', type)
 
     write_to_file ('aia_define.py', "APLIC_NR_SRC", 'a', aia_variables.aplic_nr_sources)
     write_to_file ('aia_define.py', "APLIC_NR_HARTS", 'a', aia_variables.aplic_nr_harts)
