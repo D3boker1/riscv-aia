@@ -89,6 +89,7 @@ import imsic_protocol_pkg::*;
 
             imsic_island_top #(
                 .ImsicCfg               ( ImsicCfg              ),
+                .ProtocolCfg            ( ProtocolCfg           ),             
                 .axi_req_t              ( axi_req_t             ),
                 .axi_resp_t             ( axi_resp_t            )
             ) i_imsic_top (

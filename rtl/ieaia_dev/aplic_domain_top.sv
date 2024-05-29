@@ -8,9 +8,11 @@
 module aplic_domain_top 
 import aplic_pkg::*;
 import imsic_pkg::*;
+import imsic_protocol_pkg::*;
 #(
    parameter aplic_cfg_t      AplicCfg                = DefaultAplicCfg,
    parameter imsic_cfg_t      ImsicCfg                = DefaultImsicCfg,
+   parameter protocol_cfg_t   ProtocolCfg             = DefaultImsicProtocolCfg,
    parameter type             reg_req_t               = logic,
    parameter type             reg_rsp_t               = logic,
    parameter type             axi_req_t               = logic,
@@ -97,6 +99,7 @@ import imsic_pkg::*;
    aplic_domain_notifier #(    
       .AplicCfg               ( AplicCfg              ),
       .ImsicCfg               ( ImsicCfg              ),
+      .ProtocolCfg            ( ProtocolCfg           ),
       .axi_req_t              ( axi_req_t             ),
       .axi_resp_t             ( axi_resp_t            )
    ) i_aplic_domain_notifier_minimal (
