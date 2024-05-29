@@ -92,6 +92,9 @@ def check_user_test():
         if (AIA_MODE == DOMAIN_IN_DIRECT_MODE):
             if (TARGET_PRIO[i] < 0 or TARGET_PRIO[i] > APLIC_MIN_PRIO):
                 raise ValueError(f'{RED}Wrong value for TARGET_PRIO[{i}]: {TARGET_PRIO[i]}. It must be in the range [0, UserMinPrio-1]. The later is the min. priority that an interrupt can have (in aia spec. means the max. number), and can be configured in aia_pkg.sv.{RESET}')
+            elif (TARGET_PRIO[i] == 0):
+                TARGET_PRIO[i] = 1
+                warnings.warn( f'{YELLOW}TARGET_PRIO[{i}] was configured as 0. Hardware will force it to 1. Changing TARGET_PRIO[{i}] expected value from 0 to 1...{RESET}', UserWarning )
         else:
             warnings.warn( f'{YELLOW}Ignoring TARGET_PRIO because AIA is functioning in MSI Mode{RESET}', UserWarning )
         if (AIA_MODE == DOMAIN_IN_MSI_MODE):
