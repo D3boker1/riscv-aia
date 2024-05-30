@@ -312,7 +312,7 @@ import aplic_pkg::*;
 
     always_comb begin :sourcecfg_logic
         /** reset value */
-        for (int i = 0; i < AplicCfg.NrSources; i++) begin
+        for (int i = 1; i < AplicCfg.NrSources; i++) begin
             sourcecfg_mux3_i0[i].d = '0;
             sourcecfg_mux3_i0[i].ddf.ci = '0;
         end
