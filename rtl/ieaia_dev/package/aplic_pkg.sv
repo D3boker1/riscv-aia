@@ -11,6 +11,7 @@ import aia_pkg::*;
     localparam UserMinPrioW =  (UserMinPrio == 1) ? 1 : $clog2(UserMinPrio);
     
     typedef logic [UserNrDomainsW-1:0] intp_domain_t;
+    typedef intp_domain_t domain_idx_t;
     typedef logic [31:0] inpt_bitmap_t;
     typedef logic [31:0] aia_bitmap_t;
     typedef logic [31:0] intp_by_num_t;
@@ -150,17 +151,25 @@ import aia_pkg::*;
     localparam SOURCECFG_NOT_DELEGATED = 0;
     localparam SOURCECFG_DELEGATED = 1;
 
-  function bit is_valid_aplic_sourcecfg_sm(input logic[2:0] value);
-      case (value)
-          APLIC_SM_INACTIVE,
-          APLIC_SM_DETACHED,
-          APLIC_SM_EDGE1,
-          APLIC_SM_EDGE0,
-          APLIC_SM_LEVEL1,
-          APLIC_SM_LEVEL0: is_valid_aplic_sourcecfg_sm = 1;
-          default: is_valid_aplic_sourcecfg_sm = 0;
-      endcase
-  endfunction
+    function bit is_valid_aplic_sourcecfg_sm(input logic[2:0] value);
+        case (value)
+            APLIC_SM_INACTIVE,
+            APLIC_SM_DETACHED,
+            APLIC_SM_EDGE1,
+            APLIC_SM_EDGE0,
+            APLIC_SM_LEVEL1,
+            APLIC_SM_LEVEL0: is_valid_aplic_sourcecfg_sm = 1;
+            default: is_valid_aplic_sourcecfg_sm = 0;
+        endcase
+    endfunction
+
+    function automatic bit domain_is_parent(input int parent_candidate, input int parent_idx);
+        if (parent_idx == parent_candidate) begin
+            domain_is_parent = 1;
+        end else begin
+            domain_is_parent = 0;
+        end
+    endfunction
 
 /********************************************************************
 *                           mmsiaddrcfg                            *

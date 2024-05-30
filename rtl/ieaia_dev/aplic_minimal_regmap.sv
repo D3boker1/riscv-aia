@@ -15,7 +15,7 @@ import aplic_pkg::*;
    parameter int                                NR_REG            = (AplicCfg.NrSources-1)/32,
    parameter int                                NR_REG_LEN        = (NR_REG == 0 | NR_REG == 1) ? 1 : $clog2(NR_REG)
 ) (
-  input  logic [AplicCfg.NrSources-1:1][AplicCfg.NrDomainsW-1:0]    intp_domain_i,
+  input  intp_domain_t                [AplicCfg.NrSources-1:1]    intp_domain_i,
   output logic                        [AplicCfg.NrDomainsW-1:0]   target_domain_o,
   output logic                        [NR_REG_LEN-1:0]            target_source_reg_o,
   // Register: domaincfg
@@ -110,15 +110,6 @@ import aplic_pkg::*;
   output reg_rsp_t                    o_resp
 );
 
-  function bit domain_is_parent(input logic[AplicCfg.NrDomainsW-1:0] parent_candidate, 
-                                input logic[AplicCfg.NrDomainsW-1:0] domain_idx);
-    if (AplicCfg.DomainsCfg[domain_idx].ParentID == 32'(parent_candidate)) begin
-        domain_is_parent = 1;
-    end else begin
-        domain_is_parent = 0;
-    end
-  endfunction
-
   function automatic bit check_source_domain (input logic[AplicCfg.NrSourcesW-1:0] source_idx, 
                                               input logic[AplicCfg.NrDomainsW-1:0] domain_idx);
     if (intp_domain_i[source_idx] == domain_idx) begin
@@ -128,9 +119,21 @@ import aplic_pkg::*;
     end
   endfunction
 
+  function domain_idx_t search_child_idx (input domain_idx_t domain_idx, input domain_idx_t child_idx);
+    search_child_idx = 0;
+    for (int j = 0; j < AplicCfg.NrDomains; j++) begin
+      for (shortint i = 0; i < AplicCfg.DomainsCfg[j].NrChilds; i++) begin
+        if ((domain_idx_t'(AplicCfg.DomainsCfg[j].ChildsIdx[i]) == child_idx) && 
+             domain_idx_t'(AplicCfg.DomainsCfg[j].id) == domain_idx) begin
+          search_child_idx = domain_idx_t'(i);
+        end
+      end
+    end
+  endfunction
+
   // Auxiliar signals to compute indexs
   logic [31:0]            register_address;
-  logic [AplicCfg.NrDomainsW-1:0] target_domain;
+  domain_idx_t            target_domain;
   logic [AplicCfg.NrSourcesW-1:0]  target_source;
   logic [9:0]             target_source_aux;
   logic [NR_REG_LEN-1:0]  target_source_reg;
@@ -402,9 +405,9 @@ always_comb begin
             o_resp.rdata[10]  = i_sourcecfg[target_source].d;
             o_resp.rdata[2:0] = i_sourcecfg[target_source].ddf.nd.sm;
           end else begin
-            if (domain_is_parent(target_domain, intp_domain_i[target_source])) begin
+            if (domain_is_parent(int'(target_domain), AplicCfg.DomainsCfg[intp_domain_i[target_source]].ParentID)) begin
               o_resp.rdata[10] = 'h1;
-              o_resp.rdata[AplicCfg.NrDomainsW-1:0] = intp_domain_i[target_source];
+              o_resp.rdata[AplicCfg.NrDomainsW-1:0] = search_child_idx(target_domain, intp_domain_i[target_source]);
             end
           end
         end

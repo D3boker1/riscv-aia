@@ -68,7 +68,7 @@ import aplic_pkg::*;
 // =========================================================
 
 // =============== Register Map instantiation ==============
-    logic [AplicCfg.NrSources-1:1][AplicCfg.NrDomainsW-1:0] intp_domain_d, intp_domain_q;
+    intp_domain_t   [AplicCfg.NrSources-1:1] intp_domain_d, intp_domain_q;
     aia_bitmap_t    [NR_REG:0]               active;
     // Register domaincfg
     domaincfg_t                              domaincfg_q    [AplicCfg.NrDomains-1:0]; 
@@ -296,11 +296,13 @@ import aplic_pkg::*;
         for (int j = 1; j < AplicCfg.NrSources; j++) begin
             if (sourcecfg_we[j] && sourcecfg_o[j].d) begin
                 if (!domain_is_leaf(intp_domain_q[j])) begin
-                    if (sourcecfg_o[j].ddf.ci[AplicCfg.NrDomainsW-1:0] != intp_domain_q[j]) begin // ci field len should be based on config 
-                        intp_domain_d[j] = sourcecfg_o[j].ddf.ci[AplicCfg.NrDomainsW-1:0];
-                    end
+                    intp_domain_d[j] = intp_domain_t'(AplicCfg.DomainsCfg[intp_domain_q[j]].ChildsIdx[sourcecfg_o[j].ddf.ci]);
                 end else begin
                     zero_reg = 1'b1;
+                end
+            end else if (sourcecfg_we[j] && !sourcecfg_o[j].d) begin 
+                if (domain_is_parent(int'(target_domain), AplicCfg.DomainsCfg[intp_domain_q[j]].ParentID)) begin
+                    intp_domain_d[j] = intp_domain_t'(AplicCfg.DomainsCfg[intp_domain_q[j]].ParentID);
                 end
             end
         end

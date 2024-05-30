@@ -188,8 +188,8 @@ async def aia_integration(dut):
     sourcecfg_s_expected_val = []
     for i in range(NR_TESTS_INTP):
         if (TARGET_LEVEL[i] == S_MODE):
-            aplic_axi.axi_write_reg(dut, SOURCECFG_M_BASE+(SOURCECFG_OFF * (TARGET_INTP[i]-1)), (DELEGATE_SRC | 0x1))
-            sourcecfg_m_expected_val.append((DELEGATE_SRC | 0x1))
+            aplic_axi.axi_write_reg(dut, SOURCECFG_M_BASE+(SOURCECFG_OFF * (TARGET_INTP[i]-1)), (DELEGATE_SRC | 0x0))
+            sourcecfg_m_expected_val.append((DELEGATE_SRC | 0x0))
             await Timer(ONE_CYCLE, units="ns")
             aplic_axi.axi_stop(dut)
             await Timer(ONE_CYCLE*3, units="ns")

@@ -34,14 +34,14 @@ import imsic_pkg::*;
     logic                                               en;
     logic                                               we;
     logic [7:0]                                         be;
-    logic [ImsicCfg.AXI_ADDR_WIDTH-1:0]  address;
-    logic [ImsicCfg.AXI_DATA_WIDTH-1:0]  wdata;
-    logic [ImsicCfg.AXI_DATA_WIDTH-1:0]  rdata;
+    logic [ProtocolCfg.AXI_ADDR_WIDTH-1:0]  address;
+    logic [ProtocolCfg.AXI_DATA_WIDTH-1:0]  wdata;
+    logic [ProtocolCfg.AXI_DATA_WIDTH-1:0]  rdata;
 
     axi_lite_interface #(
-        .AXI_ADDR_WIDTH ( ImsicCfg.AXI_ADDR_WIDTH ),
-        .AXI_DATA_WIDTH ( ImsicCfg.AXI_DATA_WIDTH ),
-        .AXI_ID_WIDTH   ( ImsicCfg.AXI_ID_WIDTH   ),
+        .AXI_ADDR_WIDTH ( ProtocolCfg.AXI_ADDR_WIDTH ),
+        .AXI_DATA_WIDTH ( ProtocolCfg.AXI_DATA_WIDTH ),
+        .AXI_ID_WIDTH   ( ProtocolCfg.AXI_ID_WIDTH   ),
         .axi_req_t      ( axi_req_t                              ),
         .axi_resp_t     ( axi_resp_t                             )
     ) axi_lite_interface_i (
