@@ -557,9 +557,9 @@ import aplic_pkg::*;
         in_clrip_q          <= '0;
         setie_q             <= '0;
         target_q            <= '0;
+        intp_domain_q       <= '0;
         for (int i = 0; i < AplicCfg.NrDomains; i++) begin
             domaincfg_q[i]         <= '0;
-            intp_domain_q[i]       <= '0;
             `ifdef MSI_MODE
             genmsi_q[i]            <= '0;
             `elsif DIRECT_MODE
