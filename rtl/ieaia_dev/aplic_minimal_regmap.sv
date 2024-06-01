@@ -27,21 +27,21 @@ import aplic_pkg::*;
   output sourcecfg_t                  [AplicCfg.NrSources-1:1]      o_sourcecfg   ,
   output logic                        [AplicCfg.NrSources-1:1]      o_sourcecfg_we,
   // Register: mmsiaddrcfg
-  input  logic [31:0]                 i_mmsiaddrcfg                          [0:0],
-  output logic [31:0]                 o_mmsiaddrcfg                          [0:0],
-  output logic                        o_mmsiaddrcfg_we                       [0:0],
+  input  logic [31:0]                 i_mmsiaddrcfg      [AplicCfg.NrDomainsM-1:0],
+  output logic [31:0]                 o_mmsiaddrcfg      [AplicCfg.NrDomainsM-1:0],
+  output logic                        o_mmsiaddrcfg_we   [AplicCfg.NrDomainsM-1:0],
   // Register: mmsiaddrcfgh
-  input  logic [31:0]                 i_mmsiaddrcfgh                         [0:0],
-  output logic [31:0]                 o_mmsiaddrcfgh                         [0:0],
-  output logic                        o_mmsiaddrcfgh_we                      [0:0],
+  input  logic [31:0]                 i_mmsiaddrcfgh     [AplicCfg.NrDomainsM-1:0],
+  output logic [31:0]                 o_mmsiaddrcfgh     [AplicCfg.NrDomainsM-1:0],
+  output logic                        o_mmsiaddrcfgh_we  [AplicCfg.NrDomainsM-1:0],
   // Register: smsiaddrcfg
-  input  logic [31:0]                 i_smsiaddrcfg                          [0:0],
-  output logic [31:0]                 o_smsiaddrcfg                          [0:0],
-  output logic                        o_smsiaddrcfg_we                       [0:0],
+  input  logic [31:0]                 i_smsiaddrcfg      [AplicCfg.NrDomainsM-1:0],
+  output logic [31:0]                 o_smsiaddrcfg      [AplicCfg.NrDomainsM-1:0],
+  output logic                        o_smsiaddrcfg_we   [AplicCfg.NrDomainsM-1:0],
   // Register: smsiaddrcfgh
-  input  logic [31:0]                 i_smsiaddrcfgh                         [0:0],
-  output logic [31:0]                 o_smsiaddrcfgh                         [0:0],
-  output logic                        o_smsiaddrcfgh_we                      [0:0],
+  input  logic [31:0]                 i_smsiaddrcfgh     [AplicCfg.NrDomainsM-1:0],
+  output logic [31:0]                 o_smsiaddrcfgh     [AplicCfg.NrDomainsM-1:0],
+  output logic                        o_smsiaddrcfgh_we  [AplicCfg.NrDomainsM-1:0],
   // Register: setip
   input  setip_t [NR_REG:0]           i_setip   ,
   output setip_t [NR_REG:0]           o_setip   ,
@@ -131,6 +131,13 @@ import aplic_pkg::*;
     end
   endfunction
 
+  function automatic bit check_domain_m_level (input domain_idx_t domain_idx);
+    check_domain_m_level = 0;
+    if (AplicCfg.DomainsCfg[domain_idx].LevelMode == DOMAIN_IN_M_MODE) begin
+      check_domain_m_level = 1;
+    end
+  endfunction
+
   // Auxiliar signals to compute indexs
   logic [31:0]            register_address;
   domain_idx_t            target_domain;
@@ -184,18 +191,11 @@ import aplic_pkg::*;
     target_source_aux = i_req.addr[9:0] >> 2;
     target_source = target_source_aux[AplicCfg.NrSourcesW-1:0];
 
-    // if NR_REG != 0 then
     target_source_reg_aux = i_req.addr[6:0] >> 2;
     target_source_reg = target_source_reg_aux[NR_REG_LEN-1:0];
-    // else 
-    // target_source_reg = 0
-    // endif
-
-    // if NR_HArt == 1 then
-    // target_idc_id = 0
-    // else then 
+  
     target_idc_reg_aux = register_address - 'h4000;
-    target_idc_reg = target_idc_reg_aux[4:0]; // & 'h1f;
+    target_idc_reg = target_idc_reg_aux[4:0];
     target_idc_id_aux = target_idc_reg_aux >> 5;
     target_idc_id = target_idc_id_aux[AplicCfg.NrHartsW-1:0];
 
@@ -246,17 +246,18 @@ always_comb begin
     o_ithreshold_we[i]  = '0;
     o_claimi_re[i]      = '0;
     `endif
+    if (check_domain_m_level(domain_idx_t'(i))) begin
+      o_mmsiaddrcfg     [i] = '0;
+      o_mmsiaddrcfg_we  [i] = '0;
+      o_mmsiaddrcfgh    [i] = '0;
+      o_mmsiaddrcfgh_we [i] = '0;
+      o_smsiaddrcfg     [i] = '0;
+      o_smsiaddrcfg_we  [i] = '0;
+      o_smsiaddrcfgh    [i] = '0;
+      o_smsiaddrcfgh_we [i] = '0;
+    end
   end
   
-  // this needs adjust to allow multiple M domains
-  o_mmsiaddrcfg     [0] = '0;
-  o_mmsiaddrcfg_we  [0] = '0;
-  o_mmsiaddrcfgh    [0] = '0;
-  o_mmsiaddrcfgh_we [0] = '0;
-  o_smsiaddrcfg     [0] = '0;
-  o_smsiaddrcfg_we  [0] = '0;
-  o_smsiaddrcfgh    [0] = '0;
-  o_smsiaddrcfgh_we [0] = '0;
 
   if (i_req.valid) begin
     if (i_req.write) begin
@@ -283,20 +284,28 @@ always_comb begin
           o_sourcecfg_we[target_source]      = 1'b1;
         end
         'h1bc0: begin
-          o_mmsiaddrcfg[0][31:0]     = i_req.wdata[31:0];
-          o_mmsiaddrcfg_we[0]      = 1'b1;
+          if (check_domain_m_level(domain_idx_t'(target_domain))) begin
+            o_mmsiaddrcfg[target_domain][31:0]  = i_req.wdata[31:0];
+            o_mmsiaddrcfg_we[target_domain]     = 1'b1;
+          end
         end
         'h1bc4: begin
-          o_mmsiaddrcfgh[0][31:0]     = i_req.wdata[31:0];
-          o_mmsiaddrcfgh_we[0]      = 1'b1;
+          if (check_domain_m_level(domain_idx_t'(target_domain))) begin
+            o_mmsiaddrcfgh[target_domain][31:0] = i_req.wdata[31:0];
+            o_mmsiaddrcfgh_we[target_domain]    = 1'b1;
+          end
         end
         'h1bc8: begin
-          o_smsiaddrcfg[0][31:0]     = i_req.wdata[31:0];
-          o_smsiaddrcfg_we[0]      = 1'b1;
+          if (check_domain_m_level(domain_idx_t'(target_domain))) begin
+            o_smsiaddrcfg[target_domain][31:0]  = i_req.wdata[31:0];
+            o_smsiaddrcfg_we[target_domain]     = 1'b1;
+          end
         end
         'h1bcc: begin
-          o_smsiaddrcfgh[0][31:0]     = i_req.wdata[31:0];
-          o_smsiaddrcfgh_we[0]      = 1'b1;
+          if (check_domain_m_level(domain_idx_t'(target_domain))) begin
+            o_smsiaddrcfgh[target_domain][31:0] = i_req.wdata[31:0];
+            o_smsiaddrcfgh_we[target_domain]    = 1'b1;
+          end
         end
         ['h1c00 : 'h1c00 + (NR_REG * 'h4)]: begin
           o_setip[target_source_reg][31:0]   = i_req.wdata[31:0] & en_in_domain[target_domain][target_source_reg];
@@ -412,16 +421,24 @@ always_comb begin
           end
         end
         'h1bc0: begin
-          o_resp.rdata[31:0]     = i_mmsiaddrcfg[0][31:0];
+          if (check_domain_m_level(domain_idx_t'(target_domain))) begin
+            o_resp.rdata[31:0]     = i_mmsiaddrcfg[target_domain][31:0];
+          end
         end
         'h1bc4: begin
-          o_resp.rdata[31:0]     = i_mmsiaddrcfgh[0][31:0];
+          if (check_domain_m_level(domain_idx_t'(target_domain))) begin
+            o_resp.rdata[31:0]     = i_mmsiaddrcfgh[target_domain][31:0];
+          end
         end
         'h1bc8: begin
-          o_resp.rdata[31:0]     = i_smsiaddrcfg[0][31:0];
+          if (check_domain_m_level(domain_idx_t'(target_domain))) begin
+            o_resp.rdata[31:0]     = i_smsiaddrcfg[target_domain][31:0];
+          end
         end
         'h1bcc: begin
-          o_resp.rdata[31:0]     = i_smsiaddrcfgh[0][31:0];
+          if (check_domain_m_level(domain_idx_t'(target_domain))) begin
+            o_resp.rdata[31:0]     = i_smsiaddrcfgh[target_domain][31:0];
+          end
         end
         ['h1c00 : 'h1c00 + (NR_REG * 'h4)]: begin
           o_resp.rdata = i_setip[target_source_reg] & en_in_domain[target_domain][target_source_reg];

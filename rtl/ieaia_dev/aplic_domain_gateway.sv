@@ -70,7 +70,7 @@ import aplic_pkg::*;
                 end
                 APLIC_SM_LEVEL1, APLIC_SM_LEVEL0: begin
                     for (int j = 0; j < AplicCfg.NrDomains; j++) begin
-                        if (i_intp_domain[i] == j[0]) begin
+                        if (i_intp_domain[i] == j[AplicCfg.NrDomainsW-1:0]) begin
                             if(i_domaincfgDM[j])begin
                                 new_intp_src[i]     = FROM_EDGE_DETECTOR;
                                 intp_pen_src[i]     = LEVELXDM1_C;

@@ -1,16 +1,19 @@
 package aplic_pkg;
 
 import aia_pkg::*;
+import aplic_domain_pkg::*;
 
 /********************************************************************
 *                   APLIC generic params & types                    *
 ********************************************************************/
-    localparam UserNrDomainsW = (UserNrDomains == 1) ? 1 : $clog2(UserNrDomains);
+    localparam SysNrDomains = UserNrDomains + 1; // Root domain is fixed
+    localparam SysNrDomainsM = UserNrDomainsM + 1; // Root domain is fixed
+    localparam SysNrDomainsW = (SysNrDomains == 1) ? 1 : $clog2(SysNrDomains);
     localparam UserNrHartsW =  ((UserNrHarts == 0)||(UserNrHarts == 1)) ? 1 : $clog2(UserNrHarts);
     localparam UserNrSourcesW =  (UserNrSources == 1) ? 1 : $clog2(UserNrSources);
     localparam UserMinPrioW =  (UserMinPrio == 1) ? 1 : $clog2(UserMinPrio);
     
-    typedef logic [UserNrDomainsW-1:0] intp_domain_t;
+    typedef logic [SysNrDomainsW-1:0] intp_domain_t;
     typedef intp_domain_t domain_idx_t;
     typedef logic [31:0] inpt_bitmap_t;
     typedef logic [31:0] aia_bitmap_t;
@@ -24,7 +27,6 @@ import aia_pkg::*;
     localparam NrSourcesMax = 1024;
     localparam NrHartsMax   = 16384;
     localparam NrDomainsMax = 3;
-    localparam NrChildsMax  = 2;
 
 /********************************************************************
 *                           APLIC Config                            *
@@ -40,23 +42,15 @@ import aia_pkg::*;
     } idc_cfg_t;
 
     typedef struct packed {
-        shortint                        id;
-        int                             ParentID;
-        shortint                        NrChilds;
-        logic [9:0][NrChildsMax-1:0]    ChildsIdx;
-        logic                           LevelMode;
-        logic [31:0]                    Addr;
-    } domain_cfg_t;
-
-    typedef struct packed {
         int                             NrSources;
         int                             NrDomains;
+        int                             NrDomainsM;
         int                             NrHarts;
         shortint                        NrSourcesW;
         shortint                        NrDomainsW;
         shortint                        NrHartsW;
         logic                           DeliveryMode; // For now we enforce the same delivery mode in all domains
-        domain_cfg_t [UserNrDomains-1:0]DomainsCfg; 
+        domain_cfg_t [SysNrDomains-1:0]DomainsCfg; 
     } aplic_cfg_t;
 
     /*****************************************************************
@@ -71,25 +65,17 @@ import aia_pkg::*;
             Addr: 32'hc000000
         };
 
-        localparam domain_cfg_t AplicDomainS_0 = '{
-            id: shortint'(1),
-            ParentID: int'(0),
-            NrChilds: shortint'(0),
-            ChildsIdx: '{default: '0},
-            LevelMode: DOMAIN_IN_S_MODE,
-            Addr: 32'hd000000
-        };
-
         localparam aplic_cfg_t DefaultAplicCfg = '{ 
-            NrDomains: int'(UserNrDomains),
-            NrDomainsW: shortint'(UserNrDomainsW),
+            NrDomains: int'(SysNrDomains),
+            NrDomainsW: shortint'(SysNrDomainsW),
+            NrDomainsM: int'(SysNrDomainsM),
             NrSources: int'(UserNrSources),
             NrSourcesW: shortint'(UserNrSourcesW),
             NrHarts: int'(UserNrHarts),
             NrHartsW: shortint'(UserNrHartsW),
             DeliveryMode: UserAplicMode,
             DomainsCfg: {   // Domains with Highest IDs first  
-                            AplicDomainS_0, 
+                            UserDomainsCfg, 
                             AplicRootDomain 
                         }
         };
