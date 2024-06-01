@@ -42,7 +42,7 @@ endif
 
 # APLIC source files
 VERILOG_SOURCES += $(IEAIA_FOLDER)/aplic_domain_regctl.sv
-VERILOG_SOURCES += $(IEAIA_FOLDER)/aplic_minimal_regmap.sv
+VERILOG_SOURCES += $(IEAIA_FOLDER)/aplic_regmap.sv
 VERILOG_SOURCES += $(IEAIA_FOLDER)/aplic_domain_gateway.sv
 VERILOG_SOURCES += $(IEAIA_FOLDER)/aplic_domain_notifier.sv
 VERILOG_SOURCES += $(IEAIA_FOLDER)/aplic_domain_top.sv
